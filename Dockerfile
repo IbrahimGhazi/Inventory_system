@@ -11,6 +11,6 @@ RUN pip install --upgrade pip && pip install -r requirements.txt
 
 COPY . .
 
+# run migrations when container starts
 CMD python manage.py migrate --noinput && \
-    python manage.py collectstatic --noinput && \
-    gunicorn InventoryMS.wsgi:application --bind 0.0.0.0:$PORT --workers 2
+    gunicorn InventoryMS.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120
