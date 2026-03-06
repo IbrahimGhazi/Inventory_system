@@ -1,8 +1,8 @@
 [build]
-builder = "nixpacks"
+builder = "dockerfile"
 
 [deploy]
-startCommand = "python manage.py migrate && python manage.py collectstatic --noinput && gunicorn InventoryMS.wsgi --bind 0.0.0.0:$PORT --workers 2 --timeout 120"
-healthcheckPath = "/"
+startCommand = "gunicorn InventoryMS.wsgi --bind 0.0.0.0:$PORT --workers 2 --timeout 120"
+healthcheckPath = "/login/"
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
