@@ -14,20 +14,18 @@ COPY . .
 EXPOSE 8000
 
 CMD sh -c "\
-  echo '>>> migrate' && \
-  python manage.py migrate --noinput && \
-  echo '>>> collectstatic' && \
-  python manage.py collectstatic --noinput && \
-  if [ \"$LOAD_FIXTURE\" = '1' ]; then \
-    echo '>>> load_data_safe' && \
-    python manage.py load_data_safe --fixture data_dump.json; \
-  else \
-    echo '>>> skipping fixture load'; \
-  fi && \
-  echo '>>> starting gunicorn' && \
-  gunicorn InventoryMS.wsgi:application \
-    --bind 0.0.0.0:${PORT:-8000} \
-    --workers 2 \
-    --timeout 300 \
-    --log-level info \
+echo '>>> migrate' && \
+python manage.py migrate --noinput && \
+echo '>>> collectstatic' && \
+python manage.py collectstatic --noinput && \
+echo '>>> load fixture if needed' && \
+if [ \"${LOAD_FIXTURE:-0}\" = \"1\" ]; then \
+  python manage.py load_data_safe --fixture data_dump.json; \
+fi && \
+echo '>>> starting gunicorn' && \
+gunicorn InventoryMS.wsgi:application \
+  --bind 0.0.0.0:${PORT:-8000} \
+  --workers 2 \
+  --timeout 300 \
+  --log-level info
 "
