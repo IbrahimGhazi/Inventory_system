@@ -20,8 +20,7 @@ CMD sh -c "\
   python manage.py collectstatic --noinput && \
   if [ \"$LOAD_FIXTURE\" = '1' ]; then \
     echo '>>> load_data_safe' && \
-    python manage.py load_data_safe --fixture data_dump.json && \
-    echo '>>> fixture done — set LOAD_FIXTURE=0 in Railway'; \
+    python manage.py load_data_safe --fixture data_dump.json; \
   else \
     echo '>>> skipping fixture load'; \
   fi && \
