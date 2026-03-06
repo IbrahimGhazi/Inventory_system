@@ -1,0 +1,647 @@
+{% extends "store/base.html" %}
+{% load static %}
+{% load crispy_forms_tags %}
+
+{% block title %}Create Invoice{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+  <div class="row justify-content-center">
+    <div class="col-12">
+
+      <form method="POST" id="invoice-form" action="">
+        {% csrf_token %}
+        <h2 class="text-center text-success">Create Invoice</h2>
+        <hr />
+
+        <!-- Header: Customer + Shipping -->
+        <div class="mb-3">
+          {{ form|crispy }}
+        </div>
+
+        {{ items.management_form }}
+
+        <div class="table-responsive">
+          <table class="table table-bordered align-middle" id="invoice-items" style="table-layout:auto;">
+            <thead class="table-light">
+              <tr>
+                <th style="width:10%">Category</th>
+                <th style="width:34%">Item</th>
+                <th style="width:8%">Qty</th>
+                <th style="width:12%">Unit Price</th>
+                <th style="width:10%">Discount %</th>
+                <th style="width:20%">Custom Product</th>
+                <th style="width:6%">Delete</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for form in items %}
+              <tr class="form-row" data-index="{{ forloop.counter0 }}">
+                {% for hidden in form.hidden_fields %}
+                  {{ hidden }}
+                {% endfor %}
+
+                <!-- Category -->
+                <td>
+                  <select class="form-select form-select-sm row-category" aria-label="Category">
+                    <option value="">--</option>
+                  </select>
+                </td>
+
+                <!-- Item + stock badge (flex) -->
+                <td>
+                  <div class="d-flex align-items-center item-cell">
+                    <div class="item-select-wrap" style="flex:1">
+                      {{ form.item }}
+                    </div>
+                    <div class="ms-2" style="flex:0 0 auto;">
+                      <span class="stock-badge badge bg-secondary" style="min-width:72px;display:inline-block;text-align:center;">Stock: -</span>
+                    </div>
+                  </div>
+                </td>
+
+                <!-- QTY -->
+                <td class="td-qty">
+                  {{ form.quantity }}
+                  <div class="small text-danger mt-1 qty-warning" style="display:none;"></div>
+                </td>
+
+                <!-- UNIT PRICE -->
+                <td class="td-price">
+                  {{ form.price_per_item }}
+                </td>
+
+                <!-- DISCOUNT -->
+                <td class="td-discount">
+                  {{ form.discount }}
+                </td>
+
+                <!-- CUSTOM -->
+                <td class="td-custom">
+                  {{ form.custom_name }}
+                </td>
+
+                <!-- DELETE -->
+                <td class="text-center">
+                  {% if form.DELETE %}
+                    {{ form.DELETE }}
+                  {% else %}
+                    <input type="checkbox" name="{{ form.prefix }}-DELETE" class="row-delete" />
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center mt-3 gap-3 flex-wrap">
+          <div>
+            <button type="button" id="add-item" class="btn btn-secondary">Add Item</button>
+          </div>
+
+          <div class="invoice-summary card p-2 ms-auto me-3" id="invoice-summary" style="min-width:300px;max-width:420px;">
+            <div class="d-flex justify-content-between small">
+              <div>Subtotal</div><div id="sum-subtotal">0.00</div>
+            </div>
+            <div class="d-flex justify-content-between small">
+              <div>Shipping</div><div id="sum-shipping">0.00</div>
+            </div>
+            <div class="d-flex justify-content-between small">
+              <div>Discounts</div><div id="sum-discount">0.00</div>
+            </div>
+            <hr class="my-1" />
+            <div class="d-flex justify-content-between fw-bold">
+              <div>Grand Total</div><div id="sum-grand">0.00</div>
+            </div>
+          </div>
+
+          <div>
+            <button type="submit" class="btn btn-success">Submit Invoice</button>
+          </div>
+        </div>
+
+      </form>
+
+      <div id="server-errors" class="mt-3"></div>
+
+    </div>
+  </div>
+</div>
+
+<style>
+/* Base */
+#invoice-items th, #invoice-items td { vertical-align: middle; padding: .55rem; }
+#invoice-items select, #invoice-items input { font-size: .95rem; box-sizing: border-box; }
+
+/* Category small */
+#invoice-items td:nth-child(1) select { max-width:110px; min-width:90px; }
+
+/* Item select: allow label to wrap, but keep badge aligned */
+.item-cell .item-select-wrap select, .item-cell .item-select-wrap input {
+  width:100%;
+  max-width:100%;
+}
+
+/* Qty / Price / Discount sizes — explicit so spinners fit and don't overflow */
+.td-qty input[type="number"],
+.td-qty input[type="text"] {
+  width:78px;
+  max-width:78px;
+  padding: .35rem .5rem;
+}
+
+/* Price slightly larger */
+.td-price input[type="number"],
+.td-price input[type="text"] {
+  width:120px;
+  max-width:120px;
+  padding: .35rem .5rem;
+}
+
+/* Discount narrow */
+.td-discount input[type="number"],
+.td-discount input[type="text"] {
+  width:90px;
+  max-width:90px;
+  padding: .35rem .5rem;
+}
+
+/* Custom product - give priority and lots of space */
+.td-custom input[type="text"] {
+  width:100%;
+  min-width:300px;
+  font-size: .96rem;
+  padding: .45rem .6rem;
+  background:#fbfbfb;
+}
+
+/* Stock badge colors and spacing */
+.stock-badge.out { background:#dc3545 !important; }   /* red */
+.stock-badge.low { background:#f0ad4e !important; color:#000; } /* orange */
+.stock-badge.ok  { background:#198754 !important; }
+
+/* Ensure spinners appear inside the field cleanly on webkit */
+input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button {
+  margin: 0;
+}
+
+/* Ensure table does not clip right-hand parts (avoid overflow) */
+.table-responsive { overflow-x: auto; }
+
+/* Small-device adjustments */
+@media (max-width: 900px) {
+  .invoice-summary { display:none; }
+  .td-custom input[type="text"] { min-width:160px; }
+  #invoice-items td:nth-child(1) select { max-width:120px; }
+}
+</style>
+
+<script>
+(function(){
+  // Basic helpers & elements
+  const tbody = document.querySelector("#invoice-items tbody");
+  const addBtn = document.getElementById("add-item");
+  const totalFormsEl = document.querySelector("input[name='items-TOTAL_FORMS']");
+  const shippingInput = document.querySelector("input[name='shipping'], input[id$='-shipping']");
+  const sumSubtotalEl = document.getElementById("sum-subtotal");
+  const sumShippingEl = document.getElementById("sum-shipping");
+  const sumDiscountEl = document.getElementById("sum-discount");
+  const sumGrandEl = document.getElementById("sum-grand");
+
+  function toDec(v){ try { return parseFloat(String(v).replace(/,/g,'')) || 0; } catch(e){ return 0; } }
+  function fmt(v){ return Number(v).toFixed(2); }
+
+  // ---------- CLONING FIX: cache original item options ----------
+  let ORIGINAL_ITEM_OPTIONS_HTML = null;
+  let CURRENT_STORE_ID = null;
+  let STORE_ITEMS_DATA = null;   // always holds the current filtered item list
+
+  // Build <option> HTML — stock shown in label text so badge + category filter both work
+  function buildOptionsHTML(items) {
+    let html = '<option value="">--- Select item ---</option>';
+    items.forEach(it => {
+      const stockLabel = (it.stock !== null && it.stock !== undefined) ? ` — Stock: ${it.stock}` : '';
+      html += `<option value="${it.id}" data-price="${it.price}" data-stock="${it.stock}">${it.name} (${it.category})${stockLabel}</option>`;
+    });
+    return html;
+  }
+
+  function cacheOriginalItemOptions() {
+    if (ORIGINAL_ITEM_OPTIONS_HTML) return;
+    const firstItemSelect = document.querySelector(
+      "#invoice-items select[name$='-item'], #invoice-items select[id$='-item']"
+    );
+    if (firstItemSelect) ORIGINAL_ITEM_OPTIONS_HTML = firstItemSelect.innerHTML;
+  }
+
+  // Reload all item selects in every row with new options HTML
+  function reloadAllItemSelects(optionsHTML) {
+    ORIGINAL_ITEM_OPTIONS_HTML = optionsHTML;
+    document.querySelectorAll("#invoice-items select[name$='-item'], #invoice-items select[id$='-item']")
+      .forEach(sel => {
+        const prevVal = sel.value;
+        sel.innerHTML = optionsHTML;
+        // restore previous selection if it still exists in new options
+        if (prevVal && sel.querySelector(`option[value="${prevVal}"]`)) {
+          sel.value = prevVal;
+        } else {
+          sel.value = '';
+        }
+        // re-parse and re-populate the category dropdown for this row
+        const row = sel.closest('.form-row');
+        if (row) {
+          const catSelect = row.querySelector('.row-category');
+          const items = parseItemOptions(sel);
+          if (catSelect) populateCategorySelect(catSelect, items, '');
+          updateStockBadge(row, null);
+        }
+      });
+    recalcTotals();
+  }
+
+  // Fetch items for a store and reload all rows
+  function loadItemsForStore(storeId) {
+    CURRENT_STORE_ID = storeId;
+    const url = storeId
+      ? `/invoice/api/items-for-store/?store_id=${storeId}`
+      : `/invoice/api/items-for-store/`;
+    fetch(url, { credentials: 'same-origin' })
+      .then(r => r.json())
+      .then(items => {
+        STORE_ITEMS_DATA = items;   // ← store for category filtering
+        const html = buildOptionsHTML(items);
+        reloadAllItemSelects(html);
+      })
+      .catch(err => console.warn('Failed to load items for store:', err));
+  }
+
+  // Parse item select options into data objects (used for category / fallback)
+  function parseItemOptions(select) {
+    const items = [];
+    Array.from(select.options).forEach(opt => {
+      if (!opt.value) return;
+      const text = (opt.text || "").trim();
+
+      // category extraction: handle "Category: Category: NAME" first, fallback to parentheses
+      let category = "";
+      const catMatch = text.match(/Category:\s*Category:\s*([^-\n]+)/i);
+      if (catMatch) category = catMatch[1].trim();
+      if(!category) {
+        const par = text.match(/\(([^)]+)\)/);
+        if(par) category = par[1].trim();
+      }
+
+      // stock extraction
+      let stock = null;
+      const stockMatch = text.match(/Stock:\s*([0-9]+)/i);
+      if (stockMatch) stock = parseInt(stockMatch[1],10);
+      if (opt.dataset && opt.dataset.stock) { const s=parseInt(opt.dataset.stock,10); if(!isNaN(s)) stock = s; }
+
+      // price extraction (dataset preferred)
+      let price = null;
+      if (opt.dataset && opt.dataset.price) price = parseFloat(opt.dataset.price);
+      const priceMatch = text.match(/Price:\s*([0-9]+(?:\.[0-9]+)?)/i);
+      if (priceMatch && price === null) price = parseFloat(priceMatch[1]);
+
+      items.push({ id: opt.value, label: text, category: category, stock: stock, price: price });
+    });
+    return items;
+  }
+
+  function populateCategorySelect(catSelect, items, currentValue){
+    const cats = [...new Set(items.map(i => i.category).filter(Boolean))];
+    catSelect.innerHTML = '<option value="">--</option>';
+    cats.forEach(c => { const o=document.createElement('option'); o.value=c; o.text=c; catSelect.appendChild(o); });
+    if(currentValue) catSelect.value = currentValue;
+  }
+
+  function filterItemSelect(itemSelect, items, category) {
+    const selVal = itemSelect.value;
+    itemSelect.innerHTML = '<option value="">--- Select item ---</option>';
+    items.filter(it => !category || it.category === category)
+         .forEach(it => {
+           const o = document.createElement("option");
+           o.value = it.id;
+           o.text = it.label;
+           if(it.price !== null) o.dataset.price = it.price;
+           if(it.stock !== null) o.dataset.stock = it.stock;
+           itemSelect.appendChild(o);
+         });
+    if(selVal) {
+      const opt = itemSelect.querySelector('option[value="'+selVal+'"]');
+      if(opt) itemSelect.value = selVal;
+    }
+  }
+
+  function updateStockBadge(row, stock) {
+    const badge = row.querySelector(".stock-badge");
+    if(!badge) return;
+    let s = (stock === null || typeof stock === "undefined") ? "-" : String(stock);
+    badge.textContent = "Stock: " + s;
+    badge.classList.remove("out","low","ok");
+    if(stock === null) { badge.classList.add("ok"); return; }
+    if(stock <= 0) badge.classList.add("out");
+    else if(stock > 0 && stock <= 10) badge.classList.add("low");
+    else badge.classList.add("ok");
+  }
+
+  function recalcTotals() {
+    let subtotal = 0;
+    let totalDiscountAmount = 0;
+    Array.from(tbody.querySelectorAll(".form-row")).forEach(row => {
+      const deleteChk = row.querySelector("input[name$='-DELETE']");
+      if(deleteChk && deleteChk.checked) return;
+      const qtyEl = row.querySelector("input[name$='-quantity'], input[id$='-quantity']");
+      const priceEl = row.querySelector("input[name$='-price_per_item'], input[id$='-price_per_item']");
+      const discEl = row.querySelector("input[name$='-discount'], input[id$='-discount']");
+      const qty = toDec(qtyEl && qtyEl.value ? qtyEl.value : 0);
+      const price = toDec(priceEl && priceEl.value ? priceEl.value : 0);
+      const disc = toDec(discEl && discEl.value ? discEl.value : 0);
+      const line = qty * price;
+      const lineAfterDisc = line * (1 - (disc/100));
+      subtotal += lineAfterDisc;
+      totalDiscountAmount += (line - lineAfterDisc);
+    });
+    const shipping = toDec(shippingInput ? shippingInput.value : 0);
+    sumSubtotalEl.textContent = fmt(subtotal);
+    sumShippingEl.textContent = fmt(shipping);
+    sumDiscountEl.textContent = fmt(totalDiscountAmount);
+    sumGrandEl.textContent = fmt(subtotal + shipping);
+  }
+
+  function lastRowValid() {
+    const rows = tbody.querySelectorAll(".form-row");
+    if(!rows.length) return true;
+    const last = rows[rows.length - 1];
+    const itemEl = last.querySelector("select[name$='-item'], select[id$='-item']");
+    const customEl = last.querySelector("input[name$='-custom_name'], input[id$='-custom_name']");
+    const qtyEl = last.querySelector("input[name$='-quantity'], input[id$='-quantity']");
+    const hasItem = itemEl && itemEl.value;
+    const hasCustom = customEl && customEl.value && customEl.value.trim().length > 0;
+    const qty = qtyEl ? toDec(qtyEl.value) : 0;
+    return ( (hasItem || hasCustom) && qty > 0 );
+  }
+
+  // ---------- PRICE API helper with small client-side cache ----------
+  const priceCache = {};
+  function fetchPrice(itemId) {
+    if (!itemId) return Promise.resolve(null);
+    if (priceCache[itemId] !== undefined) return Promise.resolve(priceCache[itemId]);
+
+    // NOTE: ensure this URL matches your urls.py mapping for api_item_price
+    const url = `/invoice/api/item/${itemId}/price/`;
+    return fetch(url, { credentials: "same-origin" })
+      .then(resp => {
+        if (!resp.ok) throw new Error("Failed to fetch price");
+        return resp.json();
+      })
+      .then(data => {
+        const p = (data && data.price) ? data.price : null;
+        priceCache[itemId] = p;
+        return p;
+      })
+      .catch(err => {
+        console.warn("fetchPrice error:", err);
+        priceCache[itemId] = null;
+        return null;
+      });
+  }
+
+  function attachRow(row) {
+    const itemSelect = row.querySelector("select[name$='-item'], select[id$='-item']");
+    const qtyInput = row.querySelector("input[name$='-quantity'], input[id$='-quantity']");
+    const priceInput = row.querySelector("input[name$='-price_per_item'], input[id$='-price_per_item']");
+    const discountInput = row.querySelector("input[name$='-discount'], input[id$='-discount']");
+    if (discountInput && (discountInput.value === "" || discountInput.value === null)) {
+      discountInput.value = "0";
+    }
+    const customInput = row.querySelector("input[name$='-custom_name'], input[id$='-custom_name']");
+    const catSelect = row.querySelector(".row-category");
+    const qtyWarningEl = row.querySelector(".qty-warning");
+    if(!itemSelect) return;
+
+    // parse items from this row's item select (options) - used for category & fallback
+    const items = parseItemOptions(itemSelect);
+
+    // populate category dropdown
+    populateCategorySelect(catSelect, items, "");
+
+    // if pre-selected item, set category, price, stock badge
+    if(itemSelect.value) {
+      const selectedOpt = itemSelect.options[itemSelect.selectedIndex];
+      const dsPrice = selectedOpt && selectedOpt.dataset ? selectedOpt.dataset.price : null;
+      const dsStock = selectedOpt && selectedOpt.dataset ? selectedOpt.dataset.stock : null;
+
+      if(dsPrice !== undefined && dsPrice !== "") {
+        priceInput.value = dsPrice;
+      } else {
+        // Try cache / API if price not present in option
+        fetchPrice(itemSelect.value).then(p => {
+          if(p !== null && p !== undefined) priceInput.value = p;
+          else {
+            // fallback to parsed items array if available
+            const found = items.find(it => it.id == itemSelect.value);
+            if(found && found.price !== null) priceInput.value = found.price;
+          }
+        });
+      }
+
+      if(dsStock !== undefined && dsStock !== "") {
+        updateStockBadge(row, parseInt(dsStock, 10));
+      } else {
+        const found2 = items.find(it => it.id == itemSelect.value);
+        if(found2) updateStockBadge(row, found2.stock);
+        else updateStockBadge(row, null);
+      }
+    } else {
+      updateStockBadge(row, null);
+    }
+
+    // category -> filter items for this row
+    // Always read from STORE_ITEMS_DATA if available so filtering is against
+    // the current store's items, not the stale closure variable.
+    catSelect.addEventListener("change", function(){
+      let sourceItems;
+      if (STORE_ITEMS_DATA !== null) {
+        // convert API objects to the same shape parseItemOptions produces
+        sourceItems = STORE_ITEMS_DATA.map(it => ({
+          id: String(it.id),
+          label: `${it.name} (${it.category}) — Stock: ${it.stock}`,
+          category: it.category,
+          stock: it.stock,
+          price: parseFloat(it.price) || null,
+        }));
+      } else {
+        sourceItems = parseItemOptions(itemSelect);
+      }
+      filterItemSelect(itemSelect, sourceItems, catSelect.value);
+      itemSelect.value = "";
+      updateStockBadge(row, null);
+    });
+
+    // ---------- ITEM CHANGE: use API/cache for price (robust) ----------
+    itemSelect.addEventListener("change", function(){
+      const val = this.value;
+      if(!val) {
+        if(customInput) customInput.disabled = false;
+        updateStockBadge(row, null);
+        recalcTotals();
+        return;
+      }
+
+      if(customInput) { customInput.value = ""; customInput.disabled = true; }
+
+      // try to read from option dataset first (fast)
+      const opt = this.options[this.selectedIndex];
+      const dsPrice = opt && opt.dataset ? opt.dataset.price : null;
+      const dsStock = opt && opt.dataset ? opt.dataset.stock : null;
+
+      if(dsPrice !== undefined && dsPrice !== "") {
+        priceInput.value = dsPrice;
+        // store in cache for future
+        priceCache[val] = dsPrice;
+        updateStockBadge(row, dsStock !== undefined && dsStock !== "" ? parseInt(dsStock,10) : null);
+        recalcTotals();
+        return;
+      }
+
+      // otherwise fetch from backend (guaranteed)
+      fetchPrice(val).then(p => {
+        if(p !== null && p !== undefined) priceInput.value = p;
+        else {
+          // final fallback to parsed items array
+          const found = items.find(it => it.id == val);
+          if(found && found.price !== null) priceInput.value = found.price;
+        }
+        // stock: try dsStock then fallback to parsed value
+        if(dsStock !== undefined && dsStock !== "") {
+          updateStockBadge(row, parseInt(dsStock,10));
+        } else {
+          const found2 = items.find(it => it.id == val);
+          updateStockBadge(row, found2 ? found2.stock : null);
+        }
+        recalcTotals();
+      }).catch(() => {
+        recalcTotals();
+      });
+    });
+
+    // custom input toggles item select
+    if(customInput) {
+      customInput.addEventListener("input", function(){
+        if(this.value.trim()) {
+          if(itemSelect) { itemSelect.value = ""; itemSelect.disabled = true; updateStockBadge(row, null); }
+        } else {
+          if(itemSelect) itemSelect.disabled = false;
+        }
+        recalcTotals();
+      });
+    }
+
+    // qty/price/discount -> totals & qty warning
+    [qtyInput, priceInput, discountInput].forEach(el => {
+      if(!el) return;
+      el.addEventListener("input", function(){
+        const qty = toDec(qtyInput && qtyInput.value ? qtyInput.value : 0);
+        const stockText = row.querySelector(".stock-badge").textContent || "";
+        const stockMatch = stockText.match(/Stock:\s*([0-9]+)/);
+        const stock = stockMatch ? parseInt(stockMatch[1],10) : null;
+        if(stock !== null && !isNaN(stock) && qty > stock) {
+          if(qtyWarningEl) { qtyWarningEl.style.display = "block"; qtyWarningEl.textContent = `Requested qty (${qty}) exceeds stock (${stock})`; }
+        } else {
+          if(qtyWarningEl) { qtyWarningEl.style.display = "none"; qtyWarningEl.textContent = ""; }
+        }
+        recalcTotals();
+      });
+    });
+
+    // delete checkbox -> recalc
+    const delChk = row.querySelector("input[name$='-DELETE']");
+    if(delChk) delChk.addEventListener("change", recalcTotals);
+  }
+
+  function initAllRows(){
+    cacheOriginalItemOptions();
+    Array.from(tbody.querySelectorAll(".form-row")).forEach(row => attachRow(row));
+    recalcTotals();
+
+    // If a store is already selected on page load, filter items immediately
+    const storeSelect = document.querySelector("select[name='store'], select[id$='-store']");
+    if (storeSelect) {
+      if (storeSelect.value) loadItemsForStore(storeSelect.value);
+      storeSelect.addEventListener('change', function () {
+        loadItemsForStore(this.value);
+      });
+    }
+  }
+
+  // Add new row (restores original options for item selects)
+  addBtn.addEventListener("click", function(e){
+    e.preventDefault();
+    if(!lastRowValid()) {
+      alert("Please complete the current row (choose item or custom name and enter quantity) before adding a new row.");
+      const rows = tbody.querySelectorAll(".form-row");
+      const last = rows[rows.length - 1];
+      const customEl = last.querySelector("input[name$='-custom_name']");
+      const itemEl = last.querySelector("select[name$='-item']");
+      const qtyEl = last.querySelector("input[name$='-quantity']");
+      if(itemEl && !itemEl.value) itemEl.focus();
+      else if(customEl && !customEl.value) customEl.focus();
+      else if(qtyEl) qtyEl.focus();
+      return;
+    }
+
+    const rows = tbody.querySelectorAll(".form-row");
+    const last = rows[rows.length - 1];
+    const clone = last.cloneNode(true);
+    const idx = totalFormsEl ? Number(totalFormsEl.value) : rows.length;
+    clone.dataset.index = idx;
+
+    Array.from(clone.querySelectorAll("input, select, textarea")).forEach(el => {
+      if(el.name) el.name = el.name.replace(/-(\d+)-/, `-${idx}-`);
+      if(el.id) el.id = el.id.replace(/-(\d+)-/, `-${idx}-`);
+
+      if(el.type === "checkbox") {
+        el.checked = false;
+      }
+      else if(el.tagName.toLowerCase() === "select") {
+        if(el.classList.contains("row-category")) {
+          el.value = "";
+        } else {
+          // restore full original options HTML so new row has all items available
+          el.innerHTML = ORIGINAL_ITEM_OPTIONS_HTML || '<option value="">--- Select item ---</option>';
+          el.value = "";
+        }
+      } else {
+        // Default discount to 0, others empty
+        if (el.name && el.name.endsWith("-discount")) {
+          el.value = "0";
+        } else {
+          el.value = "";
+        }
+      }
+
+      // ensure no cloned element remains disabled
+      try { el.disabled = false; } catch(e) { /* ignore if read-only element */ }
+    });
+
+    tbody.appendChild(clone);
+    if(totalFormsEl) totalFormsEl.value = idx + 1;
+    attachRow(clone);
+    const newCat = clone.querySelector(".row-category");
+    if(newCat) newCat.focus();
+  });
+
+  // shipping -> totals
+  if(shippingInput) shippingInput.addEventListener("input", recalcTotals);
+
+  initAllRows();
+
+  // observe table changes to recalc totals (helpful when rows added/removed)
+  const obs = new MutationObserver(() => recalcTotals());
+  obs.observe(tbody, {childList:true, subtree:true});
+
+})();
+</script>
+{% endblock %}

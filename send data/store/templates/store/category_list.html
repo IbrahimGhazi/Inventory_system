@@ -1,0 +1,59 @@
+{% extends 'store/base.html' %}
+
+{% block content %}
+<!-- Header Section -->
+<div class="container my-4">
+    <div class="card shadow-sm rounded p-3">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h4 class="display-6 mb-0 text-success">Categories</h4>
+            </div>
+            <div class="col-md-6 d-flex justify-content-end gap-2">
+                <a class="btn btn-success btn-sm rounded-pill shadow-sm" href="{% url 'category-create' %}">
+                    <i class="fa-solid fa-plus"></i> Add Category
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container px-3">
+    <style>
+        .table th, .table td {
+            text-align: center;
+        }
+    </style>
+
+    {% if categories %}
+    <table class="table table-sm table-striped table-bordered">
+        <thead class="thead-light">
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for category in categories %}
+            <tr>
+                <td>{{ category.pk }}</td>
+                <td>{{ category.name }}</td>
+                <td>
+                    <a href="{% url 'category-delete' category.pk %}"
+                       class="btn btn-outline-danger btn-sm"
+                       onclick="return confirm('Are you sure you want to delete this category?');">
+                        <i class="fa-solid fa-trash"></i> Delete
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="alert alert-info">
+        No categories found.
+        <a href="{% url 'category-create' %}">Create one</a>.
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

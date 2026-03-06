@@ -1,0 +1,30 @@
+{% extends "store/base.html" %}
+
+{% block title %}Product Detail{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+  <div class="card shadow-sm">
+    <div class="card-body">
+
+      <h3>{{ object.name }}</h3>
+      <hr>
+
+      <p><strong>Category:</strong> {{ object.category }}</p>
+      <p><strong>Price:</strong> {{ object.price }}</p>
+      <p><strong>Stock:</strong> {{ object.stock }}</p>
+      <p><strong>Vendor:</strong> {{ object.vendor }}</p>
+
+      {% if object.description %}
+        <hr>
+        <p>{{ object.description }}</p>
+      {% endif %}
+
+      <a href="{% url 'productslist' %}" class="btn btn-secondary mt-3">
+        Back
+      </a>
+
+    </div>
+  </div>
+</div>
+{% endblock %}

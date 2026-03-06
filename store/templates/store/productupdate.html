@@ -1,0 +1,59 @@
+{% extends "store/base.html" %}
+{% load static %}
+
+{% block title %}Update Product{% endblock title %}
+
+{% block content %}
+<div class="container my-5">
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+      <div class="card shadow-sm">
+        <div class="card-body">
+
+          <h3 class="text-center mb-4">Update Product</h3>
+
+          <form method="post">
+            {% csrf_token %}
+
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label>Product Name</label>
+                {{ form.name }}
+              </div>
+              <div class="col-md-6 mb-3">
+                <label>Category</label>
+                {{ form.category }}
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label>Description</label>
+              {{ form.description }}
+            </div>
+
+            <div class="row">
+              <div class="col-md-4 mb-3">
+                <label>Price</label>
+                {{ form.price }}
+              </div>
+              <div class="col-md-4 mb-3">
+                <label>Vendor</label>
+                {{ form.vendor }}
+              </div>
+              <div class="col-md-4 mb-3">
+                <label>Stock</label>
+                {{ form.stock }}
+              </div>
+            </div>
+
+            <div class="text-center">
+              <button class="btn btn-success btn-lg">Update</button>
+            </div>
+          </form>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock content %}

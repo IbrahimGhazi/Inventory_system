@@ -1,0 +1,579 @@
+{% extends "store/base.html" %}
+{% load static %}
+{% load crispy_forms_tags %}
+
+{% block title %}Update Invoice{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+  <div class="row justify-content-center">
+    <div class="col-12">
+
+      <form method="POST" id="invoice-form">
+        {% csrf_token %}
+
+        <h2 class="text-center text-success">Update Invoice</h2>
+        <hr>
+
+        <!-- Header (customer / invoice meta) -->
+        <div class="mb-3">
+          {{ form|crispy }}
+        </div>
+
+        {{ items.management_form }}
+
+        <div class="table-responsive">
+          <table class="table table-bordered align-middle invoice-table" id="invoice-items">
+            <thead class="table-light">
+              <tr>
+                <th class="col-category">Category</th>
+                <th class="col-item">Item</th>
+                <th class="col-qty">Qty</th>
+                <th class="col-price">Unit Price</th>
+                <th class="col-discount">Discount %</th>
+                <th class="col-custom">Custom Product</th>
+                <th class="col-remove">Remove</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {% for form in items %}
+              <tr class="form-row">
+                {% for hidden in form.hidden_fields %}
+                  {{ hidden }}
+                {% endfor %}
+
+                <td>
+                  <select class="form-select row-category">
+                    <option value="">--</option>
+                  </select>
+                </td>
+
+                <td>
+                  <div class="d-flex align-items-center gap-2">
+                    <div class="item-select-wrap" style="flex:1;">
+                      {{ form.item }}
+                    </div>
+                    <span class="badge stock-badge bg-secondary" style="white-space:nowrap;">Stock: -</span>
+                  </div>
+                </td>
+
+                <td>
+                  {{ form.quantity }}
+                  <div class="qty-warning text-danger small mt-1" style="display:none;"></div>
+                </td>
+
+                <td>{{ form.price_per_item }}</td>
+                <td>{{ form.discount }}</td>
+                <td>{{ form.custom_name }}</td>
+
+                <td class="text-center">
+                  <button type="button" class="btn btn-sm btn-danger row-remove">Remove</button>
+                  <span style="display:none;">{{ form.DELETE }}</span>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-start mt-3 flex-wrap gap-3">
+          <button type="button" id="add-item" class="btn btn-secondary">Add Item</button>
+
+          <div class="card p-3 invoice-summary" style="min-width:260px;">
+            <div class="d-flex justify-content-between"><span>Subtotal</span><strong id="sum-subtotal">0.00</strong></div>
+            <div class="d-flex justify-content-between"><span>Shipping</span><strong id="sum-shipping">0.00</strong></div>
+            <div class="d-flex justify-content-between"><span>Discounts</span><strong id="sum-discount">0.00</strong></div>
+            <hr class="my-1" />
+            <div class="d-flex justify-content-between fs-5"><span>Grand Total</span><strong id="sum-grand">0.00</strong></div>
+          </div>
+
+          <button type="submit" class="btn btn-success">Update Invoice</button>
+        </div>
+      </form>
+
+    </div>
+  </div>
+</div>
+
+<style>
+/* Layout */
+.invoice-table { table-layout: fixed; width: 100%; }
+.col-category { width: 10%; }
+.col-item     { width: 30%; }
+.col-qty      { width: 8%; }
+.col-price    { width: 12%; }
+.col-discount { width: 10%; }
+.col-custom   { width: 20%; }
+.col-remove   { width: 10%; }
+
+.invoice-table select,
+.invoice-table input { width:100%; min-width:0; box-sizing:border-box; }
+
+/* Category small */
+.row-category { min-width:90px; }
+
+/* Item select minimum width so text doesn't cut */
+.item-select-wrap select { min-width:260px; }
+
+/* Custom product roomy */
+.col-custom input { min-width:260px; background:#fbfbfb; }
+
+/* Numeric inputs */
+.col-qty input, .col-price input, .col-discount input { text-align:right; }
+
+/* Stock badge color states */
+.stock-badge.ok  { background:#198754 !important; }
+.stock-badge.low { background:#f0ad4e !important; color:#000; }
+.stock-badge.out { background:#dc3545 !important; }
+
+/* Hide raw delete (we keep hidden input) */
+input[name$='-DELETE'] { display:none !important; }
+
+@media (max-width: 1000px) {
+  .invoice-summary { display:none; }
+  .item-select-wrap select { min-width: 160px; }
+  .col-custom input { min-width: 140px; }
+}
+</style>
+
+<script>
+(function(){
+  // Elements & helpers
+  const tbody = document.querySelector("#invoice-items tbody");
+  const addBtn = document.getElementById("add-item");
+  const totalFormsEl = document.querySelector("input[name$='-TOTAL_FORMS']");
+  const shippingInput = document.querySelector("input[name='shipping'], input[id$='-shipping']");
+  const sumSubtotalEl = document.getElementById("sum-subtotal");
+  const sumShippingEl = document.getElementById("sum-shipping");
+  const sumDiscountEl = document.getElementById("sum-discount");
+  const sumGrandEl = document.getElementById("sum-grand");
+
+  function toNum(v){ return Number(String(v || 0).replace(/,/g,'')) || 0; }
+  function fmt(v){ return toNum(v).toFixed(2); }
+
+  // Cache original item options for cloning
+  let ORIGINAL_ITEM_OPTIONS_HTML = null;
+  function cacheOriginalItemOptions(){
+    if(ORIGINAL_ITEM_OPTIONS_HTML) return;
+    const first = document.querySelector("#invoice-items select[name$='-item'], #invoice-items select[id$='-item']");
+    if(first) ORIGINAL_ITEM_OPTIONS_HTML = first.innerHTML;
+  }
+
+  // ---------- PRICE API helper with client-side cache ----------
+  const priceCache = {};
+  function fetchPrice(itemId){
+    if(!itemId) return Promise.resolve(null);
+    if(priceCache[itemId] !== undefined) return Promise.resolve(priceCache[itemId]);
+
+    const url = `/invoice/api/item/${itemId}/price/`;
+    return fetch(url, { credentials: "same-origin" })
+      .then(resp => {
+        if(!resp.ok) throw new Error("Price API failed");
+        return resp.json();
+      })
+      .then(data => {
+        const p = (data && data.price) ? data.price : null;
+        priceCache[itemId] = p;
+        return p;
+      })
+      .catch(err => {
+        console.warn("fetchPrice error:", err);
+        priceCache[itemId] = null;
+        return null;
+      });
+  }
+
+  // Parse options from a select (returns array of {id, label, category, price, stock})
+  function parseItemOptionsFromSelect(select){
+    const out = [];
+    Array.from(select.options).forEach(opt => {
+      if(!opt.value) return;
+      const text = (opt.text || "").trim();
+
+      // category: try "Category: Category: NAME", fallback to (NAME)
+      let category = "";
+      const catMatch = text.match(/Category:\s*Category:\s*([^-\n]+)/i);
+      if(catMatch) category = catMatch[1].trim();
+      if(!category){
+        const par = text.match(/\(([^)]+)\)/);
+        if(par) category = par[1].trim();
+      }
+
+      // price from data-price or "Price: n"
+      let price = null;
+      if(opt.dataset && opt.dataset.price) price = parseFloat(opt.dataset.price);
+      const priceMatch = text.match(/Price:\s*([0-9]+(?:\.[0-9]+)?)/i);
+      if(priceMatch && price === null) price = parseFloat(priceMatch[1]);
+
+      // stock from data-stock or "Stock: n"
+      let stock = null;
+      if(opt.dataset && opt.dataset.stock) {
+        const s = parseInt(opt.dataset.stock,10);
+        if(!isNaN(s)) stock = s;
+      }
+      const stockMatch = text.match(/Stock:\s*([0-9]+)/i);
+      if(stockMatch && stock === null) stock = parseInt(stockMatch[1],10);
+
+      out.push({
+        id: opt.value,
+        label: text,
+        category: category || "",
+        price: price,
+        stock: stock
+      });
+    });
+    return out;
+  }
+
+  // Populate category select from items array
+  function populateCategorySelect(catSelect, items, currentValue){
+    const cats = [...new Set(items.map(i => i.category).filter(Boolean))];
+    catSelect.innerHTML = '<option value="">--</option>';
+    cats.forEach(c => {
+      const o = document.createElement("option");
+      o.value = c;
+      o.text = c;
+      catSelect.appendChild(o);
+    });
+    if(currentValue) catSelect.value = currentValue;
+  }
+
+  // Filter item select to only show items for a category (or all if empty)
+  function filterItemSelect(itemSelect, items, category){
+    const prevVal = itemSelect.value;
+    itemSelect.innerHTML = '<option value="">--- Select item ---</option>';
+    items.filter(it => !category || it.category === category)
+         .forEach(it => {
+           const o = document.createElement("option");
+           o.value = it.id;
+           o.text = it.label;
+           if(it.price != null) o.dataset.price = it.price;
+           if(it.stock != null) o.dataset.stock = it.stock;
+           itemSelect.appendChild(o);
+         });
+    // restore prev selection if still present
+    if(prevVal){
+      const opt = itemSelect.querySelector(`option[value="${prevVal}"]`);
+      if(opt) itemSelect.value = prevVal;
+    }
+  }
+
+  // Update stock badge appearance
+  function updateStockBadge(badgeEl, stock){
+    if(!badgeEl) return;
+    const s = (stock === null || typeof stock === "undefined") ? "-" : String(stock);
+    badgeEl.textContent = "Stock: " + s;
+    badgeEl.classList.remove("ok","low","out");
+    if(stock === null) badgeEl.classList.add("ok");
+    else if(stock <= 0) badgeEl.classList.add("out");
+    else if(stock <= 10) badgeEl.classList.add("low");
+    else badgeEl.classList.add("ok");
+  }
+
+  // Recalculate totals
+  function recalcTotals(){
+    let subtotal = 0;
+    let totalDiscountAmount = 0;
+    Array.from(tbody.querySelectorAll(".form-row")).forEach(row => {
+      const delInput = row.querySelector("input[name$='-DELETE']");
+      if(delInput && delInput.checked) return;
+      const qtyEl = row.querySelector("input[name$='-quantity']");
+      const priceEl = row.querySelector("input[name$='-price_per_item']");
+      const discEl = row.querySelector("input[name$='-discount']");
+      const qty = toNum(qtyEl && qtyEl.value);
+      const price = toNum(priceEl && priceEl.value);
+      const disc = toNum(discEl && discEl.value);
+      const line = qty * price;
+      const after = line * (1 - disc/100);
+      subtotal += after;
+      totalDiscountAmount += (line - after);
+    });
+    const shipping = toNum(shippingInput && shippingInput.value);
+    sumSubtotalEl.textContent = fmt(subtotal);
+    sumShippingEl.textContent = fmt(shipping);
+    sumDiscountEl.textContent = fmt(totalDiscountAmount);
+    sumGrandEl.textContent = fmt(subtotal + shipping);
+  }
+
+  // Validate last row before adding
+  function lastRowValid(){
+    const rows = tbody.querySelectorAll(".form-row");
+    if(!rows.length) return true;
+    const last = rows[rows.length - 1];
+    const itemSel = last.querySelector("select[name$='-item']");
+    const customInp = last.querySelector("input[name$='-custom_name']");
+    const qtyInp = last.querySelector("input[name$='-quantity']");
+    const qty = toNum(qtyInp && qtyInp.value);
+    const hasItem = itemSel && itemSel.value;
+    const hasCustom = customInp && customInp.value && customInp.value.trim().length>0;
+    return ((hasItem || hasCustom) && qty > 0);
+  }
+
+  // Attach behavior to a single row
+  function attachRow(row){
+    const catSelect = row.querySelector(".row-category");
+    const itemSelect = row.querySelector("select[name$='-item'], select[id$='-item']");
+    const customInput = row.querySelector("input[name$='-custom_name']");
+    const qtyInput = row.querySelector("input[name$='-quantity']");
+    const priceInput = row.querySelector("input[name$='-price_per_item']");
+    const discountInput = row.querySelector("input[name$='-discount']");
+    const deleteInput = row.querySelector("input[name$='-DELETE']");
+    const removeBtn = row.querySelector(".row-remove");
+    const stockBadge = row.querySelector(".stock-badge");
+    const qtyWarning = row.querySelector(".qty-warning");
+
+    if(!itemSelect || !catSelect) return;
+
+    // ensure discount defaults to 0
+    if(discountInput && (discountInput.value === "" || discountInput.value === null)) discountInput.value = "0";
+
+    // parse available items for this row from the select options (or original html for new rows)
+    let items = parseItemOptionsFromSelect(itemSelect);
+    if(items.length === 0 && ORIGINAL_ITEM_OPTIONS_HTML){
+      // create a temporary select to parse
+      const tmp = document.createElement("select");
+      tmp.innerHTML = ORIGINAL_ITEM_OPTIONS_HTML;
+      items = parseItemOptionsFromSelect(tmp);
+    }
+
+    // populate category dropdown
+    populateCategorySelect(catSelect, items, "");
+
+    // if an item is already selected in this row (editing existing invoice), set category/price/stock
+    if(itemSelect.value){
+      const found = items.find(it => it.id == itemSelect.value);
+      if(found){
+        if(found.category) catSelect.value = found.category;
+        // Only auto-fill price if blank or zero (so user-edits are preserved)
+        if(found.price != null && (!priceInput.value || Number(priceInput.value) === 0)){
+          priceInput.value = found.price;
+        } else if((!priceInput.value || Number(priceInput.value) === 0)){
+          // try API if no price known
+          fetchPrice(itemSelect.value).then(p => { if(p !== null) priceInput.value = p; });
+        }
+        updateStockBadge(stockBadge, found.stock);
+      } else {
+        // try dataset then API
+        const opt = itemSelect.options[itemSelect.selectedIndex];
+        if(opt && opt.dataset && opt.dataset.price && (!priceInput.value || Number(priceInput.value) === 0)){
+          priceInput.value = opt.dataset.price;
+        } else if(!priceInput.value || Number(priceInput.value) === 0){
+          fetchPrice(itemSelect.value).then(p => { if(p !== null) priceInput.value = p; });
+        }
+        updateStockBadge(stockBadge, null);
+      }
+      if(customInput) { customInput.value = ""; customInput.disabled = true; }
+    } else {
+      updateStockBadge(stockBadge, null);
+    }
+
+    // CATEGORY -> filter items for that category
+    catSelect.addEventListener("change", function(){
+      const cat = catSelect.value;
+      let sourceItems = items;
+      if(!sourceItems || sourceItems.length === 0){
+        const tmp = document.createElement("select");
+        tmp.innerHTML = ORIGINAL_ITEM_OPTIONS_HTML || itemSelect.innerHTML;
+        sourceItems = parseItemOptionsFromSelect(tmp);
+      }
+      filterItemSelect(itemSelect, sourceItems, cat);
+      itemSelect.value = "";
+      updateStockBadge(stockBadge, null);
+      if(customInput) customInput.disabled = false;
+    });
+
+    // ITEM -> autofill price + disable custom input + show stock
+    itemSelect.addEventListener("change", function(){
+      const val = this.value;
+      if(!val){
+        if(customInput) customInput.disabled = false;
+        updateStockBadge(stockBadge, null);
+        recalcTotals();
+        return;
+      }
+
+      if(customInput){ customInput.value = ""; customInput.disabled = true; }
+
+      // 1) try dataset on option
+      const opt = this.options[this.selectedIndex];
+      if(opt && opt.dataset && opt.dataset.price){
+        priceInput.value = opt.dataset.price;
+        if(opt.dataset && opt.dataset.stock) updateStockBadge(stockBadge, parseInt(opt.dataset.stock,10));
+        recalcTotals();
+        // cache it
+        priceCache[val] = priceInput.value;
+        return;
+      }
+
+      // 2) try parsed items array
+      let found = items.find(i => i.id == val);
+      if(!found && ORIGINAL_ITEM_OPTIONS_HTML){
+        const tmp = document.createElement("select");
+        tmp.innerHTML = ORIGINAL_ITEM_OPTIONS_HTML;
+        const parsed = parseItemOptionsFromSelect(tmp);
+        found = parsed.find(p => p.id == val);
+      }
+      if(found && found.price != null){
+        priceInput.value = found.price;
+        updateStockBadge(stockBadge, found.stock);
+        if(found.category && (!catSelect.value || catSelect.value === "")) catSelect.value = found.category;
+        priceCache[val] = priceInput.value;
+        recalcTotals();
+        return;
+      }
+
+      // 3) fallback -> API
+      fetchPrice(val).then(p => {
+        if(p !== null){
+          priceInput.value = p;
+          priceCache[val] = p;
+        } else {
+          // leave price blank if API also unknown
+        }
+        // stock: try option dataset then parsed fallback
+        if(opt && opt.dataset && opt.dataset.stock) updateStockBadge(stockBadge, parseInt(opt.dataset.stock,10));
+        else if(found) updateStockBadge(stockBadge, found.stock);
+        else updateStockBadge(stockBadge, null);
+
+        recalcTotals();
+      });
+    });
+
+    // CUSTOM input -> clears & disables item select while typed
+    if(customInput){
+      customInput.addEventListener("input", function(){
+        if(this.value && this.value.trim().length > 0){
+          itemSelect.value = "";
+          itemSelect.disabled = true;
+          updateStockBadge(stockBadge, null);
+        } else {
+          itemSelect.disabled = false;
+        }
+        recalcTotals();
+      });
+    }
+
+    // quantity/price/discount change -> qty warning & totals
+    [qtyInput, priceInput, discountInput].forEach(el=>{
+      if(!el) return;
+      el.addEventListener("input", function(){
+        const qty = toNum(qtyInput && qtyInput.value);
+        const stockText = (stockBadge && stockBadge.textContent) || "";
+        const stockMatch = stockText.match(/Stock:\s*([0-9]+)/);
+        const stock = stockMatch ? parseInt(stockMatch[1],10) : null;
+        if(stock !== null && !isNaN(stock) && qty > stock){
+          if(qtyWarning) { qtyWarning.style.display = "block"; qtyWarning.textContent = `Requested qty (${qty}) exceeds stock (${stock})`; }
+        } else if(qtyWarning) { qtyWarning.style.display = "none"; qtyWarning.textContent = ""; }
+        recalcTotals();
+      });
+    });
+
+    // Remove button: mark DELETE input and hide row (formset-safe)
+    if(removeBtn){
+      removeBtn.addEventListener("click", function(){
+        if(deleteInput){
+          if(deleteInput.type === "checkbox") deleteInput.checked = true;
+          else deleteInput.value = deleteInput.value || "on";
+        } else {
+          // fallback: remove row from DOM and adjust TOTAL_FORMS
+          row.remove();
+          if(totalFormsEl) totalFormsEl.value = String(Math.max(0, Number(totalFormsEl.value) - 1));
+        }
+        row.style.display = "none";
+        recalcTotals();
+      });
+    }
+
+    // ensure recalc on delete change
+    if(deleteInput) deleteInput.addEventListener("change", recalcTotals);
+  } // attachRow
+
+  // initialize rows
+  function initAllRows(){
+    cacheOriginalItemOptions();
+    Array.from(tbody.querySelectorAll(".form-row")).forEach(r => attachRow(r));
+    recalcTotals();
+  }
+
+  // Add-new-row handler (clones last row safely)
+  addBtn.addEventListener("click", function(e){
+    e.preventDefault();
+    if(!lastRowValid()){
+      alert("Please complete the current row (choose item or custom name and enter quantity) before adding a new row.");
+      const rows = tbody.querySelectorAll(".form-row");
+      const last = rows[rows.length - 1];
+      const itemEl = last && last.querySelector("select[name$='-item']");
+      const customEl = last && last.querySelector("input[name$='-custom_name']");
+      const qtyEl = last && last.querySelector("input[name$='-quantity']");
+      if(itemEl && !itemEl.value) itemEl.focus();
+      else if(customEl && !customEl.value) customEl.focus();
+      else if(qtyEl) qtyEl.focus();
+      return;
+    }
+
+    cacheOriginalItemOptions();
+    const rows = Array.from(tbody.querySelectorAll(".form-row"));
+    const last = rows[rows.length - 1];
+    const clone = last.cloneNode(true);
+    const idx = totalFormsEl ? Number(totalFormsEl.value) : rows.length;
+    clone.dataset.index = idx;
+
+    // rename and reset inputs inside clone
+    Array.from(clone.querySelectorAll("input, select, textarea")).forEach(el=>{
+      if(el.name) el.name = el.name.replace(/-(\d+)-/, `-${idx}-`);
+      if(el.id) el.id = el.id.replace(/-(\d+)-/, `-${idx}-`);
+      if(el.type === "checkbox"){
+        el.checked = false;
+      } else if(el.tagName.toLowerCase() === "select"){
+        if(el.classList.contains("row-category")){
+          el.value = "";
+        } else {
+          // restore full original options for item select
+          el.innerHTML = ORIGINAL_ITEM_OPTIONS_HTML || el.innerHTML;
+          el.value = "";
+          el.disabled = false;
+        }
+      } else {
+        // default discount to 0 for new rows
+        if(el.name && el.name.endsWith("-discount")) el.value = "0";
+        else el.value = "";
+        el.disabled = false;
+      }
+    });
+
+    // Ensure hidden DELETE input reset
+    const del = clone.querySelector("input[name$='-DELETE']");
+    if(del){
+      if(del.type === "checkbox") del.checked = false;
+      else del.value = '';
+    }
+
+    // clear stock badge and warnings and price
+    const badge = clone.querySelector(".stock-badge");
+    if(badge){ badge.textContent = "Stock: -"; badge.classList.remove("ok","low","out"); }
+    const warn = clone.querySelector(".qty-warning");
+    if(warn){ warn.style.display = "none"; warn.textContent = ""; }
+    const pInput = clone.querySelector("input[name$='-price_per_item']");
+    if(pInput) pInput.value = "";
+
+    tbody.appendChild(clone);
+    if(totalFormsEl) totalFormsEl.value = String(idx + 1);
+    attachRow(clone);
+    const newCat = clone.querySelector(".row-category");
+    if(newCat) newCat.focus();
+  });
+
+  // shipping input affects totals
+  if(shippingInput) shippingInput.addEventListener("input", recalcTotals);
+
+  // start
+  initAllRows();
+
+  // observe changes and recalc totals when rows added/removed
+  const mo = new MutationObserver(() => recalcTotals());
+  mo.observe(tbody, {childList:true, subtree:true});
+
+})();
+</script>
+{% endblock %}

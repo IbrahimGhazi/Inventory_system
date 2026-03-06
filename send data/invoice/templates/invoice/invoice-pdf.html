@@ -1,0 +1,185 @@
+{% extends "store/base.html" %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Invoice PDF{% endblock %}
+
+{% block content %}
+<style>
+  body { font-family: 'Poppins', sans-serif; background: #f8f9fa; color:#222; }
+  .invoice-wrapper { max-width: 900px; margin: 28px auto; background: #fff; padding: 28px; border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,0.06); }
+
+  /* Header: left logo + company, right metadata box */
+  .hdr { display:flex; justify-content:space-between; gap:18px; align-items:flex-start; margin-bottom:14px; }
+  .hdr .brand { display:flex; gap:14px; align-items:center; }
+  .brand-logo img { max-width:140px; height:auto; display:block; }
+  .brand-name { font-size:24px; font-weight:800; color:#0e4b66; margin:0 0 4px 0; text-transform:uppercase; letter-spacing:0.4px; }
+  .brand-meta { font-size:13px; color:#555; margin:0; }
+
+  .meta-box { min-width:200px; text-align:right; border:1px solid #e6eef5; padding:10px 14px; border-radius:6px; background:#fbfdff; }
+  .meta-box .label { font-size:12px; color:#666; display:block; }
+  .meta-box .value { font-weight:700; font-size:14px; color:#111; margin-bottom:6px; }
+
+  .title { text-align:center; margin:10px 0 18px 0; }
+  .title h1 { margin:0; font-size:20px; color:#0e4b66; letter-spacing:0.6px; }
+
+  .bill-to, .items-section { margin-top:8px; }
+
+  .bill-to .name { font-weight:700; font-size:15px; margin-bottom:3px; }
+  .bill-to .meta { color:#555; font-size:13px; margin:0; }
+
+  /* Items table */
+  .items { width:100%; border-collapse:collapse; margin-top:12px; }
+  .items th, .items td { border-bottom: 1px solid #e8eef2; padding:10px 8px; vertical-align:middle; }
+  .items thead th { background:#f1f8fb; color:#0e5976; font-weight:700; font-size:13px; border-bottom:2px solid #dfeff6; text-align:left; }
+  .items tbody td { font-size:13px; color:#222; }
+  .items tbody tr:nth-child(even) { background: transparent; }
+
+  .col-sno { width:5%; text-align:left; }
+  .col-desc { width:52%; text-align:left; }
+  .col-qty, .col-unit, .col-disc, .col-amount { width:11%; text-align:right; white-space:nowrap; }
+
+  /* Totals area */
+  .totals { display:flex; justify-content:flex-end; margin-top:18px; gap:18px; align-items:flex-start; }
+  .totals .box { min-width:320px; border-left:4px solid #0e4b66; padding:10px 18px 10px 14px; background:#fbfdff; border-radius:6px; }
+  .totals .row { display:flex; justify-content:space-between; padding:6px 0; font-size:14px; }
+  .totals .row.bold { font-weight:800; font-size:16px; color:#111; border-top:1px dashed #e6eef5; padding-top:10px; margin-top:6px; }
+  .balance { margin-top:10px; font-size:13px; color:#333; }
+
+  /* Footer note + signature */
+  .footer-note { margin-top:24px; font-size:12px; color:#666; text-align:center; }
+  .signature { margin-top:16px; display:flex; justify-content:space-between; align-items:center; gap:20px; }
+  .signature .sign-box { min-height:48px; border-top:1px dashed #ddd; width:220px; text-align:center; color:#777; padding-top:8px; font-size:13px; }
+
+  @media (max-width:720px) {
+    .hdr { flex-direction:column; align-items:flex-start; }
+    .meta-box { text-align:left; width:100%; }
+    .totals { flex-direction:column; align-items:stretch; }
+    .totals .box { width:100%; }
+  }
+
+</style>
+
+<div class="invoice-wrapper">
+
+  <!-- Header -->
+  <div class="hdr">
+    <div class="brand">
+      <div class="brand-logo">
+        <img src="{{ request.scheme }}://{{ request.get_host }}{% static 'images/lenter_logo.png' %}" alt="logo">
+      </div>
+      <div>
+        <p class="brand-name">AL MADINA ENTERPRISE</p>
+        <p class="brand-meta">Karachi, Pakistan &nbsp; • &nbsp; +92 335 0040521<br>NTN: 1234567 (optional)</p>
+      </div>
+    </div>
+
+    <div class="meta-box" aria-hidden="false">
+      <div>
+        <span class="label">Invoice No</span>
+        <div class="value">{{ invoice.id }}</div>
+      </div>
+      <div>
+        <span class="label">Date</span>
+        <div class="value">{{ invoice.date|date:"d M, Y" }}</div>
+      </div>
+      {% if invoice.payment_terms %}
+      <div>
+        <span class="label">Payment Terms</span>
+        <div class="value">{{ invoice.payment_terms }}</div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Title -->
+  <div class="title">
+    <h1>Tax Invoice (Rs)</h1>
+  </div>
+
+  <!-- Bill To -->
+  <div class="bill-to" style="display:flex; justify-content:space-between; gap:18px;">
+    <div style="min-width:320px;">
+      <div class="section-title" style="font-weight:700; color:#0e4b66; margin-bottom:6px;">Bill To</div>
+      <div class="name">{{ invoice.customer_name|default:"-" }}</div>
+      <div class="meta">{{ invoice.customer_address|default:"" }}</div>
+      <div class="meta">{% if invoice.customer_phone %}📞 {{ invoice.customer_phone }}{% endif %}</div>
+    </div>
+
+    <div style="min-width:220px; text-align:right;">
+      <div style="font-size:13px; color:#555; margin-bottom:6px;">Reference / PO</div>
+      <div style="font-weight:700;">{{ invoice.reference|default:"-" }}</div>
+    </div>
+  </div>
+
+  <!-- Items -->
+  <div class="items-section">
+    <table class="items" role="table" aria-label="Invoice items">
+      <thead>
+        <tr>
+          <th class="col-sno">S.No</th>
+          <th class="col-desc">Description</th>
+          <th class="col-qty">Qty</th>
+          <th class="col-unit">Unit (Rs)</th>
+          <th class="col-disc">Disc %</th>
+          <th class="col-amount">Amount (Rs)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in items %}
+          <tr>
+            <td class="col-sno">{{ forloop.counter }}</td>
+
+            <td class="col-desc">
+              {% if row.item %}{{ row.item.name }}{% endif %}
+              {% if row.custom_name %}
+                <div style="color:#333; margin-top:4px;">— {{ row.custom_name }}</div>
+              {% endif %}
+              {% if row.item and row.item.sku %}
+                <div style="font-size:11px; color:#666; margin-top:6px;">SKU: {{ row.item.sku }}</div>
+              {% endif %}
+            </td>
+
+            <td class="col-qty">{{ row.quantity|floatformat:2|intcomma }}</td>
+            <td class="col-unit">{{ row.price_per_item|floatformat:2|intcomma }}</td>
+            <td class="col-disc">{{ row.discount|floatformat:2 }}</td>
+            <td class="col-amount">{{ row.total|floatformat:2|intcomma }}</td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="6" style="padding:18px; color:#666;">No items in this invoice.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Totals & balances -->
+  <div class="totals">
+    <div class="box" role="note" aria-label="Totals summary">
+      <div class="row"><span>Opening Balance:</span><span>Rs {{ invoice.opening_balance|floatformat:2|intcomma }}</span></div>
+      <div class="row"><span>Subtotal:</span><span>Rs {{ invoice.total|floatformat:2|intcomma }}</span></div>
+      <div class="row"><span>Shipping:</span><span>Rs {{ invoice.shipping|floatformat:2|intcomma }}</span></div>
+      <div class="row"><span>Invoice Total:</span><span>Rs {{ invoice.grand_total|floatformat:2|intcomma }}</span></div>
+      <div class="row bold"><span>Closing Balance:</span><span>Rs {{ invoice.closing_balance|floatformat:2|intcomma }}</span></div>
+    </div>
+  </div>
+
+  <!-- Signature and note -->
+  <div class="signature" style="margin-top:20px;">
+    <div style="flex:1;">
+      <div class="footer-note" style="text-align:left;">
+        <strong>Terms & Notes:</strong>
+        <div>Payment due within {{ invoice.payment_terms|default:"30 days" }} from invoice date. Goods once sold are not returnable. Please report any discrepancies within 7 days.</div>
+      </div>
+    </div>
+
+    <div style="width:260px; text-align:right;">
+      <div class="sign-box">Authorized Signature</div>
+    </div>
+  </div>
+
+  <div class="footer-note" style="margin-top:18px;">Thank you for your business. This is a computer generated invoice and does not require a signature.</div>
+
+</div>
+{% endblock %}

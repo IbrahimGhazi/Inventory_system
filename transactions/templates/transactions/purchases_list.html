@@ -1,0 +1,296 @@
+{% extends "store/base.html" %}
+{% load static %}
+
+{% block title %}Purchases{% endblock title %}
+
+{% block stylesheets %}
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --green: #16a34a; --green-light: #dcfce7; --green-dark: #15803d;
+  --red: #dc2626;   --red-light: #fee2e2;
+  --amber: #d97706; --amber-light: #fef3c7;
+  --blue: #2563eb;  --blue-light: #dbeafe;
+  --border: #e2e8f0; --surface: #f8fafc;
+  --text: #0f172a;  --muted: #64748b;
+  --shadow: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+}
+body { font-family: 'DM Sans', sans-serif; background: var(--surface); }
+
+/* ── Page header ── */
+.page-header {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 1rem; margin-bottom: 1.25rem;
+}
+.page-title { font-size: 1.4rem; font-weight: 700; color: var(--text); margin: 0; }
+.page-title span { color: var(--green); }
+
+/* ── Toolbar ── */
+.toolbar {
+  background: #fff; border: 1px solid var(--border); border-radius: 10px;
+  padding: .55rem .9rem; display: flex; align-items: center; gap: .65rem;
+  margin-bottom: 1rem; box-shadow: var(--shadow); flex-wrap: wrap;
+}
+.toolbar .search-wrap {
+  display: flex; align-items: center; gap: .5rem; flex: 1; min-width: 180px;
+}
+.toolbar input[type=search] {
+  border: none; outline: none; flex: 1; font-size: .85rem;
+  font-family: 'DM Sans', sans-serif; background: transparent; min-width: 0;
+}
+.toolbar select {
+  border: 1px solid var(--border); border-radius: 7px; padding: .28rem .6rem;
+  font-size: .8rem; font-family: 'DM Sans', sans-serif; color: var(--text);
+  background: var(--surface); outline: none; cursor: pointer;
+}
+.toolbar select:focus { border-color: var(--green); }
+.tb-divider { width: 1px; height: 22px; background: var(--border); flex-shrink: 0; }
+.result-count { font-size: .75rem; color: var(--muted); white-space: nowrap; margin-left: auto; }
+
+/* ── Table card ── */
+.table-card {
+  background: #fff; border: 1px solid var(--border); border-radius: 12px;
+  overflow: hidden; box-shadow: var(--shadow);
+}
+.pur-table { width: 100%; border-collapse: collapse; font-size: .83rem; }
+.pur-table thead tr { background: var(--surface); border-bottom: 1px solid var(--border); }
+.pur-table th {
+  padding: .6rem 1rem; font-size: .67rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .08em; color: var(--muted);
+  white-space: nowrap;
+}
+.pur-table td { padding: .72rem 1rem; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+.pur-table tbody tr:last-child td { border-bottom: none; }
+.pur-table tbody tr { transition: background .1s; }
+.pur-table tbody tr:hover { background: #f8fafc; }
+
+/* ── ID badge ── */
+.pur-id {
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 6px; padding: 2px 8px;
+  font-family: 'DM Mono', monospace; font-size: .78rem; font-weight: 700;
+  color: var(--muted); min-width: 40px; text-align: center;
+}
+
+/* ── Vendor ── */
+.vendor-name { font-weight: 600; color: var(--text); }
+
+/* ── Status badges ── */
+.status-pill {
+  display: inline-flex; align-items: center; gap: .3rem;
+  font-size: .72rem; font-weight: 700; padding: 3px 10px; border-radius: 99px;
+  white-space: nowrap;
+}
+.pill-success { background: var(--green-light); color: var(--green); }
+.pill-pending { background: var(--amber-light); color: var(--amber); }
+
+/* ── Date cell ── */
+.date-main { font-weight: 500; color: var(--text); white-space: nowrap; }
+.date-time  { font-size: .72rem; color: var(--muted); }
+
+/* ── Qty / Value ── */
+.mono { font-family: 'DM Mono', monospace; font-size: .82rem; font-weight: 500; }
+.value-zero { color: var(--muted); }
+
+/* ── Store tag ── */
+.store-tag {
+  display: inline-block; font-size: .7rem; font-weight: 600;
+  padding: 2px 8px; border-radius: 99px;
+  background: var(--green-light); color: var(--green-dark);
+  white-space: nowrap;
+}
+.store-tag.none { background: var(--surface); color: var(--muted); border: 1px solid var(--border); }
+
+/* ── Line-item summary ── */
+.lines-count {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; border-radius: 6px;
+  background: var(--blue-light); color: var(--blue);
+  font-family: 'DM Mono', monospace; font-size: .75rem; font-weight: 700;
+}
+
+/* ── Action buttons ── */
+.act-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: 7px; border: 1px solid var(--border);
+  color: var(--muted); text-decoration: none; background: #fff;
+  transition: all .15s; font-size: .78rem;
+}
+.act-btn.edit:hover  { background: var(--blue-light); border-color: var(--blue); color: var(--blue); }
+.act-btn.del:hover   { background: var(--red-light);  border-color: var(--red);  color: var(--red); }
+
+/* ── Empty state ── */
+.empty-state { text-align: center; padding: 3.5rem 1rem; color: var(--muted); }
+.empty-state i { font-size: 2rem; opacity: .3; display: block; margin-bottom: .75rem; }
+
+/* ── Pagination ── */
+.pag-wrap { display: flex; justify-content: center; margin-top: 1.25rem; }
+.pagination .page-link {
+  border-radius: 7px !important; margin: 0 2px; min-width: 36px;
+  text-align: center; font-size: .82rem; border-color: var(--border); color: var(--text);
+}
+.pagination .page-item.active .page-link { background: var(--green); border-color: var(--green); color: #fff; }
+.pagination .page-item.disabled .page-link { color: #cbd5e1; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4" style="max-width: 1200px;">
+
+  <!-- ── Header ── -->
+  <div class="page-header">
+    <h1 class="page-title">Purchases <span>/ List</span></h1>
+    <div style="display:flex; gap:.5rem;">
+      <a href="{% url 'purchase-create' %}" class="btn btn-success btn-sm fw-semibold">
+        <i class="fa fa-plus me-1"></i> Add Purchase
+      </a>
+      <a href="{% url 'purchases-export' %}" class="btn btn-outline-secondary btn-sm">
+        <i class="fa fa-download me-1"></i> Export
+      </a>
+    </div>
+  </div>
+
+  <!-- ── Toolbar ── -->
+  <div class="toolbar">
+    <i class="fa fa-search" style="color:var(--muted); font-size:.85rem; flex-shrink:0;"></i>
+    <div class="search-wrap">
+      <input type="search" id="purSearch" placeholder="Search vendor or store…">
+    </div>
+    <div class="tb-divider"></div>
+    <select id="statusFilter">
+      <option value="">All Statuses</option>
+      <option value="success">Successful</option>
+      <option value="pending">Pending</option>
+    </select>
+    <div class="tb-divider"></div>
+    <span class="result-count" id="rowCount">{{ purchases|length }} purchase{{ purchases|length|pluralize }}</span>
+  </div>
+
+  <!-- ── Table ── -->
+  <div class="table-card">
+    <div class="table-responsive">
+      <table class="pur-table" id="purTable">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Vendor</th>
+            <th>Store</th>
+            <th class="text-center">Lines</th>
+            <th class="text-end">Total Value</th>
+            <th class="text-center">Status</th>
+            <th>Delivery Date</th>
+            <th class="text-center">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for purchase in purchases %}
+          <tr class="pur-row" data-status="{% if purchase.delivery_status == 'P' %}pending{% else %}success{% endif %}">
+
+            <!-- ID -->
+            <td><span class="pur-id">#{{ purchase.id }}</span></td>
+
+            <!-- Vendor -->
+            <td><span class="vendor-name">{{ purchase.vendor.name }}</span></td>
+
+            <!-- Store -->
+            <td>
+              {% if purchase.store %}
+                <span class="store-tag">{{ purchase.store.name }}</span>
+              {% else %}
+                <span class="store-tag none">—</span>
+              {% endif %}
+            </td>
+
+            <!-- Lines (qty of detail rows) -->
+            <td class="text-center">
+              <span class="lines-count">{{ purchase.purchase_details.all|length }}</span>
+            </td>
+
+            <!-- Total value -->
+            <td class="text-end">
+              {% if purchase.total_value > 0 %}
+                <span class="mono">Rs {{ purchase.total_value|floatformat:0 }}</span>
+              {% else %}
+                <span class="mono value-zero">—</span>
+              {% endif %}
+            </td>
+
+            <!-- Status -->
+            <td class="text-center">
+              {% if purchase.delivery_status == 'P' %}
+                <span class="status-pill pill-pending"><i class="fa fa-clock"></i> Pending</span>
+              {% else %}
+                <span class="status-pill pill-success"><i class="fa fa-check"></i> Successful</span>
+              {% endif %}
+            </td>
+
+            <!-- Delivery date -->
+            <td>
+              {% if purchase.delivery_date %}
+                <div class="date-main">{{ purchase.delivery_date|date:"d M Y" }}</div>
+                <div class="date-time">{{ purchase.delivery_date|time:"h:i A" }}</div>
+              {% else %}
+                <span style="color:var(--muted); font-size:.82rem;">Not set</span>
+              {% endif %}
+            </td>
+
+            <!-- Actions -->
+            <td class="text-center">
+              <div style="display:inline-flex; gap:.3rem;">
+                <a href="{% url 'purchase-update' purchase.id %}" class="act-btn edit" title="Edit">
+                  <i class="fa fa-pen"></i>
+                </a>
+                <a href="{% url 'purchase-delete' purchase.id %}" class="act-btn del" title="Delete">
+                  <i class="fa fa-trash"></i>
+                </a>
+              </div>
+            </td>
+
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="8">
+              <div class="empty-state">
+                <i class="fa fa-shopping-cart"></i>
+                <div style="font-weight:600; margin-bottom:.25rem;">No purchases found</div>
+                <div style="font-size:.82rem;"><a href="{% url 'purchase-create' %}" style="color:var(--green);">Add your first purchase</a></div>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  var searchInput  = document.getElementById('purSearch');
+  var statusFilter = document.getElementById('statusFilter');
+  var rowCount     = document.getElementById('rowCount');
+
+  function applyFilters() {
+    var q      = (searchInput.value || '').toLowerCase();
+    var status = statusFilter.value;
+    var rows   = document.querySelectorAll('#purTable .pur-row');
+    var visible = 0;
+    rows.forEach(function(row) {
+      var text       = row.textContent.toLowerCase();
+      var rowStatus  = row.dataset.status;
+      var matchText  = !q || text.includes(q);
+      var matchStat  = !status || rowStatus === status;
+      var show = matchText && matchStat;
+      row.style.display = show ? '' : 'none';
+      if (show) visible++;
+    });
+    rowCount.textContent = visible + ' purchase' + (visible !== 1 ? 's' : '');
+  }
+
+  if (searchInput)  searchInput.addEventListener('input',  applyFilters);
+  if (statusFilter) statusFilter.addEventListener('change', applyFilters);
+})();
+</script>
+{% endblock %}

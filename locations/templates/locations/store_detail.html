@@ -1,0 +1,304 @@
+{% extends "store/base.html" %}
+{% block title %}{{ object.name }} — Stock{% endblock %}
+
+{% block stylesheets %}
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --green: #16a34a; --green-light: #dcfce7; --green-dark: #15803d;
+  --amber: #d97706; --amber-light: #fef3c7;
+  --red: #dc2626;   --red-light: #fee2e2;
+  --blue: #2563eb;  --blue-light: #dbeafe;
+  --border: #e2e8f0; --surface: #f8fafc;
+  --text: #0f172a;  --muted: #64748b;
+  --shadow: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+}
+body { font-family: 'DM Sans', sans-serif; background: var(--surface); }
+
+/* ── Hero ── */
+.store-hero {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  color: #fff; padding: 1.75rem 2rem; border-radius: 16px;
+  margin-bottom: 1.5rem; position: relative; overflow: hidden;
+}
+.store-hero::before {
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(ellipse at 80% 50%, rgba(22,163,74,.18) 0%, transparent 70%);
+}
+.store-hero .store-name  { font-size: 1.9rem; font-weight: 700; line-height: 1.1; position: relative; }
+.store-hero .store-meta  { margin-top: .5rem; position: relative; display: flex; gap: .45rem; flex-wrap: wrap; }
+.meta-pill {
+  display: inline-flex; align-items: center; gap: .35rem;
+  background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.14);
+  border-radius: 99px; padding: 3px 11px; font-size: .73rem; font-weight: 600;
+}
+.hero-actions { position: relative; display: flex; gap: .5rem; }
+
+/* ── Stat strip ── */
+.stat-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+@media(max-width:700px){ .stat-strip { grid-template-columns: repeat(2,1fr); } }
+.stat-box {
+  background: #fff; border: 1px solid var(--border); border-radius: 12px;
+  padding: .9rem 1.1rem; box-shadow: var(--shadow);
+}
+.stat-box .s-label { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin-bottom: .2rem; }
+.stat-box .s-value { font-size: 1.5rem; font-weight: 700; font-family: 'DM Mono', monospace; line-height: 1.1; }
+
+/* ── Toolbar ── */
+.toolbar {
+  background: #fff; border: 1px solid var(--border); border-radius: 10px;
+  padding: .5rem .85rem; display: flex; align-items: center; gap: .65rem;
+  margin-bottom: 1rem; box-shadow: var(--shadow); flex-wrap: wrap;
+}
+.toolbar input[type=search] {
+  border: none; outline: none; flex: 1; font-size: .85rem;
+  font-family: 'DM Sans', sans-serif; background: transparent; min-width: 0;
+}
+.toolbar select {
+  border: 1px solid var(--border); border-radius: 7px; padding: .28rem .6rem;
+  font-size: .8rem; font-family: 'DM Sans', sans-serif; color: var(--text);
+  background: var(--surface); outline: none; cursor: pointer;
+}
+.toolbar select:focus { border-color: var(--green); }
+.tb-divider { width: 1px; height: 22px; background: var(--border); flex-shrink: 0; }
+.result-count { font-size: .75rem; color: var(--muted); white-space: nowrap; }
+
+/* ── Table ── */
+.table-card {
+  background: #fff; border: 1px solid var(--border); border-radius: 12px;
+  overflow: hidden; box-shadow: var(--shadow);
+}
+.stock-table { width: 100%; border-collapse: collapse; font-size: .83rem; }
+.stock-table thead tr { background: var(--surface); border-bottom: 1px solid var(--border); }
+.stock-table th {
+  padding: .6rem 1rem; font-size: .67rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .08em; color: var(--muted); white-space: nowrap;
+}
+.stock-table td { padding: .72rem 1rem; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+.stock-table tbody tr:last-child td { border-bottom: none; }
+.stock-table tbody tr { transition: background .1s; }
+.stock-table tbody tr:hover { background: #f8fafc; }
+
+/* ── S/N ── */
+.sn-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 6px; padding: 2px 7px;
+  font-family: 'DM Mono', monospace; font-size: .75rem; color: var(--muted);
+  min-width: 34px; text-align: center;
+}
+
+/* ── Item name ── */
+.item-name-link { font-weight: 600; color: var(--text); text-decoration: none; }
+.item-name-link:hover { color: var(--green); }
+
+/* ── Category pill ── */
+.cat-pill {
+  display: inline-block; font-size: .68rem; font-weight: 600;
+  padding: 2px 8px; border-radius: 99px;
+  background: var(--surface); border: 1px solid var(--border); color: var(--muted);
+  white-space: nowrap;
+}
+
+/* ── Vendor ── */
+.vendor-name { font-size: .8rem; color: var(--muted); font-weight: 500; }
+
+/* ── Price ── */
+.price-val { font-family: 'DM Mono', monospace; font-size: .82rem; font-weight: 600; color: var(--text); }
+
+/* ── Qty ── */
+.qty-wrap { display: flex; align-items: center; gap: .6rem; }
+.qty-pill {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 48px; padding: 3px 10px; border-radius: 8px;
+  font-family: 'DM Mono', monospace; font-size: .8rem; font-weight: 700;
+}
+.qty-ok   { background: var(--green-light); color: var(--green); }
+.qty-low  { background: var(--amber-light); color: var(--amber); }
+.qty-zero { background: var(--red-light);   color: var(--red); }
+.qty-bar  { flex: 1; height: 4px; background: #f1f5f9; border-radius: 99px; overflow: hidden; min-width: 40px; }
+.qty-bar-fill { height: 100%; border-radius: 99px; }
+
+/* ── Empty ── */
+.empty-state { text-align: center; padding: 3.5rem 1rem; color: var(--muted); }
+.empty-state i { font-size: 2rem; opacity: .3; display: block; margin-bottom: .75rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4" style="max-width: 1200px;">
+
+  <!-- ── Hero ── -->
+  <div class="store-hero">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+      <div>
+        <div class="store-name">{{ object.name }}</div>
+        <div class="store-meta">
+          <span class="meta-pill"><i class="fa fa-map-marker-alt"></i> {{ object.region.name }}</span>
+          <span class="meta-pill"><i class="fa fa-building"></i> {{ object.region.get_company_display }}</span>
+          {% if not object.is_active %}
+            <span class="meta-pill" style="background:rgba(220,38,38,.25); border-color:rgba(220,38,38,.3);">
+              <i class="fa fa-times-circle"></i> Inactive
+            </span>
+          {% endif %}
+        </div>
+      </div>
+      <div class="hero-actions">
+        <a href="{% url 'transfer-new' %}" class="btn btn-warning btn-sm fw-semibold">
+          <i class="fa fa-exchange-alt me-1"></i> Transfer Stock
+        </a>
+        <a href="{% url 'store-edit' object.slug %}" class="btn btn-sm"
+           style="background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.2);">
+          <i class="fa fa-edit me-1"></i> Edit Store
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Stat strip ── -->
+  {% with entries=stock_entries %}
+  <div class="stat-strip">
+    <div class="stat-box">
+      <div class="s-label">Total Units</div>
+      <div class="s-value" style="color:var(--green);">{{ total_units }}</div>
+    </div>
+    <div class="stat-box">
+      <div class="s-label">Product Lines</div>
+      <div class="s-value">{{ stock_entries|length }}</div>
+    </div>
+    <div class="stat-box">
+      <div class="s-label">Low Stock ≤10</div>
+      <div class="s-value" style="color:var(--amber);" id="low-count">—</div>
+    </div>
+    <div class="stat-box">
+      <div class="s-label">Out of Stock</div>
+      <div class="s-value" style="color:var(--red);" id="zero-count">—</div>
+    </div>
+  </div>
+  {% endwith %}
+
+  <!-- ── Toolbar ── -->
+  <div class="toolbar">
+    <i class="fa fa-search" style="color:var(--muted); font-size:.85rem; flex-shrink:0;"></i>
+    <input type="search" id="stockSearch" placeholder="Search by item name, category, or vendor…">
+    <div class="tb-divider"></div>
+    <select id="stockFilter">
+      <option value="">All Stock Levels</option>
+      <option value="ok">Healthy (>10)</option>
+      <option value="low">Low (1–10)</option>
+      <option value="zero">Out of Stock</option>
+    </select>
+    <div class="tb-divider"></div>
+    <span class="result-count" id="rowCount">{{ stock_entries|length }} item{{ stock_entries|length|pluralize }}</span>
+  </div>
+
+  <!-- ── Table ── -->
+  <div class="table-card">
+    {% if stock_entries %}
+    <div class="table-responsive">
+      <table class="stock-table" id="stockTable">
+        <thead>
+          <tr>
+            <th>S/N</th>
+            <th>Name</th>
+            <th>Category</th>
+            <th class="text-end">Price</th>
+            <th>Vendor</th>
+            <th style="width:220px;">Stock</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for entry in stock_entries %}
+          <tr class="stock-row"
+              data-qty="{{ entry.quantity }}"
+              data-level="{% if entry.quantity == 0 %}zero{% elif entry.quantity <= 10 %}low{% else %}ok{% endif %}">
+            <td><span class="sn-badge">{{ forloop.counter }}</span></td>
+            <td>
+              <a href="{% url 'product-detail' entry.item.slug %}" class="item-name-link">
+                {{ entry.item.name }}
+              </a>
+            </td>
+            <td>
+              <span class="cat-pill">{{ entry.item.category.name|default:"—" }}</span>
+            </td>
+            <td class="text-end">
+              <span class="price-val">Rs {{ entry.item.price|floatformat:0 }}</span>
+            </td>
+            <td>
+              <span class="vendor-name">{{ entry.item.vendor.name|default:"—" }}</span>
+            </td>
+            <td>
+              <div class="qty-wrap">
+                {% if entry.quantity == 0 %}
+                  <span class="qty-pill qty-zero">OUT</span>
+                {% elif entry.quantity <= 5 %}
+                  <span class="qty-pill qty-low">{{ entry.quantity }}</span>
+                {% elif entry.quantity <= 10 %}
+                  <span class="qty-pill qty-low">{{ entry.quantity }}</span>
+                {% else %}
+                  <span class="qty-pill qty-ok">{{ entry.quantity }}</span>
+                {% endif %}
+                {% if total_units > 0 %}
+                <div class="qty-bar">
+                  <div class="qty-bar-fill"
+                       style="width:{% widthratio entry.quantity total_units 100 %}%;
+                              background:{% if entry.quantity == 0 %}var(--red){% elif entry.quantity <= 10 %}var(--amber){% else %}var(--green){% endif %};">
+                  </div>
+                </div>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <i class="fa fa-box-open"></i>
+      <div style="font-weight:600; margin-bottom:.3rem;">No stock recorded for this store</div>
+      <div style="font-size:.82rem;">Run the seed command or create a purchase assigned to this store.</div>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+
+<script>
+(function(){
+  var searchEl = document.getElementById('stockSearch');
+  var filterEl = document.getElementById('stockFilter');
+  var countEl  = document.getElementById('rowCount');
+  var lowEl    = document.getElementById('low-count');
+  var zeroEl   = document.getElementById('zero-count');
+
+  // Compute stat counts from data attributes
+  var allRows = document.querySelectorAll('#stockTable .stock-row');
+  var lowCount = 0, zeroCount = 0;
+  allRows.forEach(function(r){
+    if(r.dataset.level === 'low')  lowCount++;
+    if(r.dataset.level === 'zero') zeroCount++;
+  });
+  if(lowEl)  lowEl.textContent  = lowCount;
+  if(zeroEl) zeroEl.textContent = zeroCount;
+
+  function applyFilters(){
+    var q     = (searchEl ? searchEl.value : '').toLowerCase();
+    var level = filterEl ? filterEl.value : '';
+    var rows  = document.querySelectorAll('#stockTable .stock-row');
+    var visible = 0;
+    rows.forEach(function(row){
+      var text   = row.textContent.toLowerCase();
+      var rowLvl = row.dataset.level;
+      var show   = (!q || text.includes(q)) && (!level || rowLvl === level);
+      row.style.display = show ? '' : 'none';
+      if(show) visible++;
+    });
+    if(countEl) countEl.textContent = visible + ' item' + (visible !== 1 ? 's' : '');
+  }
+
+  if(searchEl) searchEl.addEventListener('input',  applyFilters);
+  if(filterEl) filterEl.addEventListener('change', applyFilters);
+})();
+</script>
+{% endblock %}

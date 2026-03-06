@@ -1,0 +1,274 @@
+{% extends "store/base.html" %}
+{% load static %}
+{% load get_item %}
+
+{% block title %}Manage Colors{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-10 col-md-12">
+
+            <div class="card shadow-sm border-light">
+                <div class="card-header d-flex align-items-center justify-content-between bg-primary text-white">
+                    <h4 class="mb-0">Manage Colors for {{ product.name }}</h4>
+
+                    <!-- Add Color button -->
+                    <div>
+                        <button id="open-add-color" type="button" class="btn btn-sm btn-light text-primary">
+                            <i class="fa fa-plus me-1" aria-hidden="true"></i> Add color
+                        </button>
+                    </div>
+                </div>
+
+                <div class="card-body">
+
+                    <form method="POST" id="manage-colors-form">
+                        {% csrf_token %}
+
+                        <table class="table table-bordered table-striped align-middle" id="colors-table">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width: 60%">Color</th>
+                                    <th style="width: 40%">Stock Qty</th>
+                                </tr>
+                            </thead>
+
+                            <tbody id="colors-tbody">
+                                {% for color in colors %}
+                                    {% with variant=variants|get_item:color.id %}
+                                    <tr data-color-id="{{ color.id }}">
+                                        <td class="align-middle">
+                                            <span
+                                                class="d-inline-block"
+                                                style="width:20px;height:20px;border-radius:3px;border:1px solid #ddd; background:#f3f3f3; margin-right:10px; vertical-align:middle;"
+                                                aria-hidden="true"></span>
+
+                                            <strong>{{ color.name }}</strong>
+
+                                            {% if variant %}
+                                                <span class="badge bg-success ms-2">Exists</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary ms-2">Not present</span>
+                                            {% endif %}
+                                        </td>
+
+                                        <td>
+                                            <input
+                                                type="number"
+                                                name="stock_{{ color.id }}"
+                                                class="form-control"
+                                                min="0"
+                                                value="{% if variant %}{{ variant.stock_qty }}{% else %}0{% endif %}">
+                                            <div class="form-text small text-muted">Set to 0 to remove variant</div>
+                                        </td>
+                                    </tr>
+                                    {% endwith %}
+                                {% endfor %}
+                            </tbody>
+                        </table>
+
+                        <div class="text-end">
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="fas fa-save" aria-hidden="true"></i> Save Changes
+                            </button>
+
+                            <a href="{% url 'productslist' %}" class="btn btn-secondary btn-lg">
+                                Back
+                            </a>
+                        </div>
+
+                    </form>
+
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- Add Color Modal (Bootstrap 5) -->
+<div class="modal fade" id="addColorModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-sm modal-dialog-centered">
+    <div class="modal-content">
+      <form id="add-color-form" class="needs-validation" novalidate>
+        {% csrf_token %}
+        <div class="modal-header">
+          <h5 class="modal-title">Add new color</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div id="add-color-errors" class="alert alert-danger d-none" role="alert"></div>
+
+          <div class="mb-3">
+            <label for="id_new_color_name" class="form-label">Color name</label>
+            <input type="text" id="id_new_color_name" name="name" class="form-control" placeholder="e.g. Piano Black" required>
+            <div class="invalid-feedback">Please provide a color name.</div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary btn-sm">Create color</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% block extra_js %}
+<script>
+(function(){
+    // Helpers
+    function qs(sel, root=document){ return root.querySelector(sel); }
+    function qsa(sel, root=document){ return Array.from((root||document).querySelectorAll(sel)); }
+
+    // CSRF cookie helper (Django default cookie name)
+    function getCookie(name){
+        if(!document.cookie) return null;
+        const cookies = document.cookie.split(';').map(c => c.trim());
+        for(let c of cookies){
+            const parts = c.split('=');
+            if(parts[0] === name) return decodeURIComponent(parts.slice(1).join('='));
+        }
+        return null;
+    }
+    const csrftoken = getCookie('csrftoken');
+
+    const openBtn = qs('#open-add-color');
+    const addModalEl = qs('#addColorModal');
+    const addForm = qs('#add-color-form');
+    const addErrors = qs('#add-color-errors');
+    const colorsTbody = qs('#colors-tbody');
+    const manageForm = qs('#manage-colors-form');
+    const bsModal = (typeof bootstrap !== 'undefined' && addModalEl) ? new bootstrap.Modal(addModalEl) : null;
+
+    // open modal
+    if(openBtn){
+        openBtn.addEventListener('click', function(e){
+            e.preventDefault();
+            if(addForm) addForm.reset();
+            if(addErrors){ addErrors.classList.add('d-none'); addErrors.innerHTML = ''; }
+            if(bsModal) bsModal.show();
+            setTimeout(()=> {
+                const el = qs('#id_new_color_name');
+                if(el) el.focus();
+            }, 200);
+        });
+    }
+
+    // Build TR markup identical to original table rows
+    function buildColorRow(colorData){
+        const tr = document.createElement('tr');
+        tr.setAttribute('data-color-id', String(colorData.id));
+
+        const td1 = document.createElement('td');
+        td1.className = 'align-middle';
+
+        const sw = document.createElement('span');
+        sw.className = 'd-inline-block';
+        sw.style.cssText = 'width:20px;height:20px;border-radius:3px;border:1px solid #ddd; background:#f3f3f3; margin-right:10px; vertical-align:middle;';
+        sw.setAttribute('aria-hidden','true');
+        td1.appendChild(sw);
+
+        const strong = document.createElement('strong');
+        strong.textContent = colorData.name;
+        td1.appendChild(strong);
+
+        const badge = document.createElement('span');
+        badge.className = 'badge bg-secondary ms-2';
+        badge.textContent = 'Not present';
+        td1.appendChild(badge);
+
+        const td2 = document.createElement('td');
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.name = 'stock_' + colorData.id;
+        input.className = 'form-control';
+        input.min = '0';
+        input.value = '0';
+        td2.appendChild(input);
+
+        const help = document.createElement('div');
+        help.className = 'form-text small text-muted';
+        help.textContent = 'Set to 0 to remove variant';
+        td2.appendChild(help);
+
+        tr.appendChild(td1);
+        tr.appendChild(td2);
+
+        return tr;
+    }
+
+    // Add-color form submit via fetch
+    if(addForm){
+        addForm.addEventListener('submit', function(ev){
+            ev.preventDefault();
+            if(addErrors){ addErrors.classList.add('d-none'); addErrors.innerHTML = ''; }
+
+            const nameEl = qs('#id_new_color_name');
+            if(!nameEl || !nameEl.value.trim()){
+                if(nameEl) nameEl.classList.add('is-invalid');
+                return;
+            } else {
+                nameEl.classList.remove('is-invalid');
+            }
+
+            const fd = new FormData(addForm);
+
+            fetch("{% url 'api_color_add' %}", {
+                method: 'POST',
+                credentials: 'same-origin',
+                body: fd,
+                headers: { 'X-CSRFToken': csrftoken }
+            }).then(async resp => {
+                let data = null;
+                try { data = await resp.json(); } catch(e){ /* ignore JSON parse errors */ }
+
+                if(!resp.ok || !data){
+                    let html = 'Server error creating color.';
+                    if(data && data.errors){
+                        html = '';
+                        for(const k in data.errors){
+                            html += '<div><strong>' + k + '</strong>: ' + data.errors[k].join(', ') + '</div>';
+                        }
+                    }
+                    if(addErrors){ addErrors.innerHTML = html; addErrors.classList.remove('d-none'); }
+                    return;
+                }
+
+                if(data.success){
+                    if(bsModal) bsModal.hide();
+
+                    const tr = buildColorRow(data);
+                    colorsTbody.appendChild(tr);
+                    const input = tr.querySelector('input[name="stock_' + data.id + '"]');
+                    if(input) input.focus();
+                    tr.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                } else {
+                    let html = 'Could not create color.';
+                    if(data && data.errors){
+                        html = '';
+                        for(const k in data.errors){
+                            html += '<div><strong>' + k + '</strong>: ' + data.errors[k].join(', ') + '</div>';
+                        }
+                    }
+                    if(addErrors){ addErrors.innerHTML = html; addErrors.classList.remove('d-none'); }
+                }
+            }).catch(err=>{
+                console.error('Add color failed', err);
+                if(addErrors){ addErrors.innerText = 'Network error while creating color.'; addErrors.classList.remove('d-none'); }
+            });
+        });
+    }
+
+    // No special client-side work needed for manageForm submit — normal POST will include stock_<id> inputs.
+    if(manageForm){
+        manageForm.addEventListener('submit', function(ev){
+            // Optional: client-side sanity checks can be added here.
+        });
+    }
+
+})();
+</script>
+{% endblock extra_js %}
+{% endblock content %}

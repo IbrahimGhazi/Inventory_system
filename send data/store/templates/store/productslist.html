@@ -1,0 +1,100 @@
+{% extends "store/base.html" %}
+{% load static %}
+{% load render_table from django_tables2 %}
+{% load querystring from django_tables2 %}
+
+{% block title %}Products{% endblock title %}
+
+{% block content %}
+<style>
+    .scroll-table-container {
+        max-height: 700px;
+        overflow-y: auto;
+        border: 1px solid #ddd;
+    }
+    .scroll-table-container thead th {
+        position: sticky;
+        top: 0;
+        background: #f8f9fa;
+        z-index: 5;
+    }
+</style>
+
+<div class="container">
+
+    <div class="container my-4">
+        <div class="card shadow-sm rounded p-3">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <h4 class="display-6 mb-0 text-success">Products</h4>
+                </div>
+                <div class="col-md-6 d-flex justify-content-end gap-2">
+                    <a class="btn btn-success btn-sm rounded-pill shadow-sm"
+                       href="{% url 'product-create' %}">
+                        <i class="fa-solid fa-plus"></i> Add Item
+                    </a>
+                    <a class="btn btn-success btn-sm rounded-pill shadow-sm"
+                       href="{% querystring '_export'='xlsx' %}">
+                        <i class="fa-solid fa-download"></i> Export
+                    </a>
+                </div>
+            </div>
+
+            <form class="input-group mt-4" method="get">
+                <input name="q"
+                       value="{{ request.GET.q }}"
+                       class="form-control border-0 rounded-pill shadow-sm"
+                       placeholder="Find products">
+                <button class="btn btn-outline-success rounded-pill shadow-sm">
+                    <i class="fa-solid fa-search"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div class="px-4 scroll-table-container">
+        <table class="table table-bordered table-striped table-hover table-sm mb-0">
+            <thead>
+                <tr>
+                    <th style="width:60px">S/N</th>
+                    <th>Name</th>
+                    <th>Category</th>
+                    <th style="width:120px">Stock</th>
+                    <th style="width:120px">Price</th>
+                    <th>Vendor</th>
+                    <th style="width:160px">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td>{{ item.name }}</td>
+                    <td>{{ item.category }}</td>
+                    <td>{{ item.stock }}</td>
+                    <td>{{ item.price }}</td>
+                    <td>{{ item.vendor }}</td>
+                    <td class="text-nowrap">
+                        <a class="btn btn-outline-info btn-sm"
+                           href="{% url 'product-update' item.slug %}">
+                            Edit
+                        </a>
+                        <a class="btn btn-outline-danger btn-sm"
+                           href="{% url 'product-delete' item.slug %}">
+                            Delete
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center">
+                        No products found
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+</div>
+{% endblock content %}

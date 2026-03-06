@@ -1,0 +1,149 @@
+{% extends "store/base.html" %}
+{% block title %}Regions{% endblock %}
+
+{% block stylesheets %}
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --green: #16a34a; --green-light: #dcfce7; --green-dark: #15803d;
+  --blue: #2563eb;  --blue-light: #dbeafe;
+  --border: #e2e8f0; --surface: #f8fafc;
+  --text: #0f172a;  --muted: #64748b;
+  --shadow: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+}
+body { font-family: 'DM Sans', sans-serif; background: var(--surface); }
+
+.page-header {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 1rem; margin-bottom: 2rem;
+}
+.page-title { font-size: 1.4rem; font-weight: 700; color: var(--text); margin: 0; }
+
+.company-section { margin-bottom: 2rem; }
+.company-header { display: flex; align-items: center; gap: .75rem; margin-bottom: 1rem; }
+.company-badge {
+  display: inline-flex; align-items: center; gap: .4rem;
+  font-size: .72rem; font-weight: 700; padding: 3px 10px; border-radius: 99px;
+  letter-spacing: .04em; white-space: nowrap;
+}
+.badge-nf { background: var(--green-light); color: var(--green-dark); }
+.badge-ss { background: var(--blue-light);  color: var(--blue); }
+.company-divider { flex: 1; height: 1px; background: var(--border); }
+
+.regions-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: .85rem;
+}
+.region-card {
+  background: #fff; border: 1px solid var(--border); border-radius: 12px;
+  box-shadow: var(--shadow); overflow: hidden; transition: box-shadow .18s, transform .15s;
+}
+.region-card:hover { box-shadow: 0 6px 18px rgba(0,0,0,.09); transform: translateY(-2px); }
+.region-card-body { padding: 1.1rem 1.2rem 1rem; }
+.region-card-name { font-size: 1.05rem; font-weight: 700; color: var(--text); margin-bottom: .45rem; }
+.region-card-meta { display: flex; align-items: center; gap: .45rem; flex-wrap: wrap; }
+.stores-pill {
+  display: inline-flex; align-items: center; gap: .3rem;
+  font-size: .72rem; font-weight: 600; padding: 2px 9px; border-radius: 99px;
+  background: var(--surface); border: 1px solid var(--border); color: var(--muted);
+}
+.inactive-pill {
+  font-size: .68rem; font-weight: 700; padding: 2px 8px; border-radius: 99px;
+  background: #fee2e2; color: #dc2626;
+}
+.region-card-footer {
+  border-top: 1px solid #f1f5f9; padding: .55rem 1.2rem; display: flex; justify-content: flex-end;
+}
+.btn-edit {
+  font-size: .75rem; font-weight: 600; color: var(--muted); text-decoration: none;
+  display: inline-flex; align-items: center; gap: .35rem;
+  padding: .28rem .65rem; border-radius: 6px; border: 1px solid var(--border);
+  background: #fff; transition: all .14s;
+}
+.btn-edit:hover { background: var(--surface); color: var(--text); border-color: #cbd5e1; }
+.empty-section {
+  background: #fff; border: 1px dashed var(--border); border-radius: 10px;
+  padding: 1.25rem; text-align: center; color: var(--muted); font-size: .82rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4" style="max-width: 1000px;">
+
+  <div class="page-header">
+    <h1 class="page-title">Regions</h1>
+    <a href="{% url 'region-add' %}" class="btn btn-success btn-sm fw-semibold">
+      <i class="fa fa-plus me-1"></i> Add Region
+    </a>
+  </div>
+
+  <!-- Naughtyfish -->
+  <div class="company-section">
+    <div class="company-header">
+      <span class="company-badge badge-nf"><i class="fa fa-building"></i> NAUGHTYFISH</span>
+      <div class="company-divider"></div>
+    </div>
+    <div class="regions-grid" id="nf-grid">
+      {% for region in regions %}
+        {% if region.company == 'NF' %}
+        <div class="region-card">
+          <div class="region-card-body">
+            <div class="region-card-name">{{ region.name }}</div>
+            <div class="region-card-meta">
+              <span class="stores-pill"><i class="fa fa-store"></i> {{ region.stores.count }} store{{ region.stores.count|pluralize }}</span>
+              {% if not region.is_active %}<span class="inactive-pill">Inactive</span>{% endif %}
+            </div>
+          </div>
+          <div class="region-card-footer">
+            <a href="{% url 'region-edit' region.slug %}" class="btn-edit"><i class="fa fa-pen"></i> Edit</a>
+          </div>
+        </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+    <div id="nf-empty" style="display:none;" class="empty-section mt-2">
+      No Naughtyfish regions yet. <a href="{% url 'region-add' %}" style="color:var(--green);">Add one →</a>
+    </div>
+  </div>
+
+  <!-- SeaStar -->
+  <div class="company-section">
+    <div class="company-header">
+      <span class="company-badge badge-ss"><i class="fa fa-building"></i> SEASTAR</span>
+      <div class="company-divider"></div>
+    </div>
+    <div class="regions-grid" id="ss-grid">
+      {% for region in regions %}
+        {% if region.company == 'SS' %}
+        <div class="region-card">
+          <div class="region-card-body">
+            <div class="region-card-name">{{ region.name }}</div>
+            <div class="region-card-meta">
+              <span class="stores-pill"><i class="fa fa-store"></i> {{ region.stores.count }} store{{ region.stores.count|pluralize }}</span>
+              {% if not region.is_active %}<span class="inactive-pill">Inactive</span>{% endif %}
+            </div>
+          </div>
+          <div class="region-card-footer">
+            <a href="{% url 'region-edit' region.slug %}" class="btn-edit"><i class="fa fa-pen"></i> Edit</a>
+          </div>
+        </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+    <div id="ss-empty" style="display:none;" class="empty-section mt-2">
+      No SeaStar regions yet. <a href="{% url 'region-add' %}" style="color:var(--blue);">Add one →</a>
+    </div>
+  </div>
+
+</div>
+
+<script>
+['nf','ss'].forEach(function(co){
+  var grid = document.getElementById(co+'-grid');
+  var empty = document.getElementById(co+'-empty');
+  if(grid && empty && grid.querySelectorAll('.region-card').length === 0){
+    empty.style.display = 'block';
+  }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,66 @@
+{# templates/store/charts.html #}
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow border-0">
+            <div class="card-body">
+                <h6 class="card-subtitle mb-2 text-muted">Sales Overview</h6>
+                <h5 class="card-title mb-3">Sales (Last 12 months)</h5>
+                <div style="height:360px;">
+                    <canvas id="salesChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.4/dist/Chart.min.js"></script>
+
+<script>
+(function(){
+    var labels = {{ sale_dates_labels|safe }};
+    var values = {{ sale_dates_values|safe }};
+
+    if (!labels || labels.length === 0) {
+        labels = []; values = [];
+        var now = new Date();
+        for (var i = 11; i >= 0; i--) {
+            var d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            labels.push(d.toLocaleString('default', { month: 'short', year: 'numeric' }));
+            values.push(0);
+        }
+    }
+
+    console.log('Sales labels:', labels);
+    console.log('Sales values:', values);
+
+    var ctx = document.getElementById('salesChart').getContext('2d');
+    if (window._salesChart && typeof window._salesChart.destroy === 'function') {
+        try { window._salesChart.destroy(); } catch(e) {}
+    }
+
+    window._salesChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Sales',
+                data: values,
+                fill: false,
+                lineTension: 0.15,
+                borderWidth: 2,
+                pointRadius: 3
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                xAxes: [{ display: true, scaleLabel: { display: true, labelString: 'Month' } }],
+                yAxes: [{ display: true, scaleLabel: { display: true, labelString: 'Amount' }, ticks: { beginAtZero: true } }]
+            },
+            legend: { display: false },
+            tooltips: { mode: 'index', intersect: false }
+        }
+    });
+})();
+</script>

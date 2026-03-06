@@ -1,0 +1,365 @@
+{% extends "store/base.html" %}
+{% load render_table from django_tables2 %}
+{% load querystring from django_tables2 %}
+{% load static %}
+
+{% block title %}Invoices{% endblock title %}
+
+{% block stylesheets %}
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --green: #16a34a; --green-light: #dcfce7; --green-dark: #15803d;
+  --red: #dc2626;   --red-light: #fee2e2;
+  --blue: #2563eb;  --blue-light: #dbeafe;
+  --border: #e2e8f0; --surface: #f8fafc;
+  --text: #0f172a;  --muted: #64748b;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+}
+body { font-family: 'DM Sans', sans-serif; background: var(--surface); }
+
+/* ── Page header ── */
+.page-header {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+.page-title { font-size: 1.4rem; font-weight: 700; color: var(--text); margin: 0; }
+.page-title span { color: var(--green); }
+.header-actions { display: flex; gap: .5rem; }
+
+/* ── Toolbar ── */
+.toolbar {
+  background: #fff; border: 1px solid var(--border); border-radius: 10px;
+  padding: .6rem .85rem; display: flex; align-items: center; gap: .75rem;
+  margin-bottom: 1rem; box-shadow: var(--shadow-sm); flex-wrap: wrap;
+}
+.toolbar .search-group {
+  display: flex; align-items: center; gap: .5rem; flex: 1; min-width: 200px;
+}
+.toolbar .search-icon { color: var(--muted); font-size: .9rem; flex-shrink: 0; }
+.toolbar input[type=search] {
+  border: none; outline: none; flex: 1;
+  font-size: .85rem; font-family: 'DM Sans', sans-serif;
+  background: transparent; min-width: 0;
+}
+.toolbar .divider { width: 1px; height: 24px; background: var(--border); flex-shrink: 0; }
+.toolbar .result-count { font-size: .75rem; color: var(--muted); white-space: nowrap; }
+
+.btn-search {
+  background: var(--green); color: #fff; border: none; border-radius: 7px;
+  padding: .35rem .85rem; font-size: .8rem; font-weight: 600; cursor: pointer;
+  font-family: 'DM Sans', sans-serif; transition: background .15s;
+}
+.btn-search:hover { background: var(--green-dark); }
+.btn-clear {
+  background: none; border: 1px solid var(--border); border-radius: 7px;
+  padding: .35rem .7rem; font-size: .8rem; color: var(--muted);
+  font-family: 'DM Sans', sans-serif; cursor: pointer; transition: border-color .15s;
+  text-decoration: none;
+}
+.btn-clear:hover { border-color: var(--text); color: var(--text); }
+
+/* ── Table card ── */
+.table-card {
+  background: #fff; border: 1px solid var(--border); border-radius: 12px;
+  overflow: hidden; box-shadow: var(--shadow-sm);
+}
+.inv-table { width: 100%; border-collapse: collapse; font-size: .83rem; }
+.inv-table thead tr { background: var(--surface); border-bottom: 1px solid var(--border); }
+.inv-table th {
+  padding: .6rem 1rem; font-size: .67rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .08em; color: var(--muted);
+  white-space: nowrap;
+}
+.inv-table td { padding: .75rem 1rem; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+.inv-table tbody tr:last-child td { border-bottom: none; }
+.inv-table tbody tr { transition: background .1s; }
+.inv-table tbody tr:hover { background: #f8fafc; }
+
+/* ── ID badge ── */
+.inv-id {
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 6px; padding: 2px 8px;
+  font-family: 'DM Mono', monospace; font-size: .78rem; font-weight: 700;
+  color: var(--muted); min-width: 44px; text-align: center;
+}
+
+/* ── Customer link ── */
+.cust-link {
+  font-weight: 600; color: var(--text); text-decoration: none;
+  display: block; white-space: nowrap;
+}
+.cust-link:hover { color: var(--green); }
+.cust-phone { font-size: .72rem; color: var(--muted); margin-top: 1px; }
+
+/* ── Date cell ── */
+.date-main { font-weight: 500; color: var(--text); white-space: nowrap; }
+.date-time  { font-size: .72rem; color: var(--muted); }
+
+/* ── Item cell ── */
+.item-name { font-weight: 500; color: var(--text); }
+.item-meta { font-size: .72rem; color: var(--muted); }
+
+/* ── Amount ── */
+.amount { font-family: 'DM Mono', monospace; font-size: .82rem; font-weight: 500; white-space: nowrap; }
+.grand-total { font-weight: 700; color: var(--green); }
+
+/* ── Multi-item badge ── */
+.multi-badge {
+  display: inline-block; font-size: .65rem; font-weight: 700;
+  background: var(--blue-light); color: var(--blue);
+  padding: 1px 6px; border-radius: 99px; margin-left: .35rem; vertical-align: middle;
+}
+
+/* ── Action buttons ── */
+.act-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: 7px; border: 1px solid var(--border);
+  color: var(--muted); text-decoration: none; transition: all .15s; background: #fff;
+  font-size: .78rem;
+}
+.act-btn:hover.edit  { background: var(--blue-light); border-color: var(--blue); color: var(--blue); }
+.act-btn:hover.del   { background: var(--red-light);  border-color: var(--red);  color: var(--red); }
+
+/* ── Empty state ── */
+.empty-state { text-align: center; padding: 3.5rem 1rem; color: var(--muted); }
+.empty-state i { font-size: 2rem; opacity: .3; margin-bottom: .75rem; display: block; }
+
+/* ── Pagination ── */
+.pag-wrap { display: flex; justify-content: center; margin-top: 1.25rem; }
+.pagination .page-link {
+  border-radius: 7px !important; margin: 0 2px; min-width: 36px;
+  text-align: center; font-size: .82rem; border-color: var(--border); color: var(--text);
+}
+.pagination .page-item.active .page-link { background: var(--green); border-color: var(--green); color: #fff; }
+.pagination .page-item.disabled .page-link { color: #cbd5e1; }
+
+@media (max-width: 900px) {
+  .table-card { border-radius: 0; border-left: none; border-right: none; }
+  .inv-table th:nth-child(4), .inv-table td:nth-child(4),
+  .inv-table th:nth-child(6), .inv-table td:nth-child(6),
+  .inv-table th:nth-child(8), .inv-table td:nth-child(8) { display: none; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4" style="max-width: 1200px;">
+
+  <!-- ── Header ── -->
+  <div class="page-header">
+    <h1 class="page-title">Invoices <span>/ List</span></h1>
+    <div class="header-actions">
+      <a href="{% url 'invoice-create' %}" class="btn btn-success btn-sm fw-semibold">
+        <i class="fa fa-plus me-1"></i> Create Invoice
+      </a>
+      <a href="{% querystring '_export'='xlsx' %}" class="btn btn-outline-secondary btn-sm">
+        <i class="fa fa-download me-1"></i> Export to Excel
+      </a>
+    </div>
+  </div>
+
+  <!-- ── Toolbar ── -->
+  <form method="get" action="">
+    <div class="toolbar">
+      <i class="fa fa-search search-icon"></i>
+      <div class="search-group">
+        <input
+          type="search"
+          name="invoice_id"
+          placeholder="Search by invoice ID (e.g. 123)…"
+          value="{{ request.GET.invoice_id|default:'' }}"
+          aria-label="Search invoice"
+        >
+      </div>
+      <div class="divider"></div>
+      <button type="submit" class="btn-search"><i class="fa fa-search me-1"></i> Search</button>
+      <a href="?" class="btn-clear">Clear</a>
+      <div class="divider"></div>
+      <span class="result-count">
+        {% if is_paginated %}
+          Page {{ page_obj.number }} of {{ paginator.num_pages }}
+        {% else %}
+          {{ invoices|length }} invoice{{ invoices|length|pluralize }}
+        {% endif %}
+      </span>
+    </div>
+  </form>
+
+  <!-- ── Table ── -->
+  <div class="table-card">
+    <div class="table-responsive">
+      <table class="inv-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Date</th>
+            <th>Customer</th>
+            <th>Item(s)</th>
+            <th class="text-end">Unit Price</th>
+            <th class="text-end">Qty</th>
+            <th class="text-end">Subtotal</th>
+            <th class="text-end">Shipping</th>
+            <th class="text-end">Grand Total</th>
+            <th class="text-center">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for invoice in invoices %}
+          <tr>
+
+            <!-- ID -->
+            <td>
+              <a href="{% url 'invoice-pdf' uuid=invoice.uuid %}" style="text-decoration:none;">
+                <span class="inv-id">#{{ invoice.id }}</span>
+              </a>
+            </td>
+
+            <!-- Date -->
+            <td>
+              {% if invoice.date %}
+                <div class="date-main">{{ invoice.date|date:"d M Y" }}</div>
+                <div class="date-time">{{ invoice.date|time:"h:i A" }}</div>
+              {% else %}—{% endif %}
+            </td>
+
+            <!-- Customer -->
+            <td>
+              <a href="{% url 'invoice-pdf' uuid=invoice.uuid %}" class="cust-link">
+                {{ invoice.customer.get_full_name }}
+              </a>
+              <div class="cust-phone">{{ invoice.customer.phone|default:"—" }}</div>
+            </td>
+
+            <!-- Item(s) -->
+            {% with items=invoice.items.all first=invoice.items.all.0 count=invoice.items.count %}
+            <td>
+              {% if first %}
+                <div class="item-name">
+                  {{ first.item.name|default:first.custom_name|default:"—" }}
+                  {% if count > 1 %}
+                    <span class="multi-badge">+{{ count|add:"-1" }} more</span>
+                  {% endif %}
+                </div>
+                <div class="item-meta">
+                  {% if first.item.category %}{{ first.item.category.name }}{% endif %}
+                </div>
+              {% else %}—{% endif %}
+            </td>
+
+            <!-- Unit price -->
+            <td class="text-end">
+              {% if first %}
+                <span class="amount">{{ first.price_per_item }}</span>
+              {% else %}—{% endif %}
+            </td>
+
+            <!-- Qty -->
+            <td class="text-end">
+              {% if first %}
+                <span class="amount">{{ first.quantity }}</span>
+              {% else %}—{% endif %}
+            </td>
+            {% endwith %}
+
+            <!-- Subtotal -->
+            <td class="text-end"><span class="amount">{{ invoice.total }}</span></td>
+
+            <!-- Shipping -->
+            <td class="text-end">
+              <span class="amount" style="color:{% if invoice.shipping > 0 %}var(--text){% else %}var(--muted){% endif %}">
+                {{ invoice.shipping }}
+              </span>
+            </td>
+
+            <!-- Grand Total -->
+            <td class="text-end">
+              <span class="amount grand-total">Rs {{ invoice.grand_total|floatformat:0 }}</span>
+            </td>
+
+            <!-- Actions -->
+            <td class="text-center">
+              <div style="display:inline-flex; gap:.3rem;">
+                <a href="{% url 'invoice-update' uuid=invoice.uuid %}" class="act-btn edit" title="Edit">
+                  <i class="fa fa-pen"></i>
+                </a>
+                <a href="{% url 'invoice-delete' uuid=invoice.uuid %}" class="act-btn del" title="Delete">
+                  <i class="fa fa-trash"></i>
+                </a>
+              </div>
+            </td>
+
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="10">
+              <div class="empty-state">
+                <i class="fa fa-receipt"></i>
+                <div style="font-weight:600; margin-bottom:.25rem;">No invoices found</div>
+                <div style="font-size:.82rem;">Try a different search or <a href="{% url 'invoice-create' %}" style="color:var(--green);">create one</a>.</div>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+ <!-- ── Pagination ── -->
+  {% if is_paginated %}
+  <div class="pag-wrap">
+    <nav aria-label="Page navigation">
+      <ul class="pagination">
+
+        {% if page_obj.has_previous %}
+        <li class="page-item">
+          <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.invoice_id %}&invoice_id={{ request.GET.invoice_id }}{% endif %}">&laquo;</a>
+        </li>
+        {% else %}
+        <li class="page-item disabled"><span class="page-link">&laquo;</span></li>
+        {% endif %}
+
+        <li class="page-item {% if page_obj.number == 1 %}active{% endif %}">
+          <a class="page-link" href="?page=1{% if request.GET.invoice_id %}&invoice_id={{ request.GET.invoice_id }}{% endif %}">1</a>
+        </li>
+
+        {% if page_obj.number > 4 %}
+        <li class="page-item disabled"><span class="page-link">…</span></li>
+        {% endif %}
+
+        {% for i in paginator.page_range %}
+          {% if i > page_obj.number|add:'-3' and i < page_obj.number|add:'3' and i != 1 and i != paginator.num_pages %}
+          <li class="page-item {% if page_obj.number == i %}active{% endif %}">
+            <a class="page-link" href="?page={{ i }}{% if request.GET.invoice_id %}&invoice_id={{ request.GET.invoice_id }}{% endif %}">{{ i }}</a>
+          </li>
+          {% endif %}
+        {% endfor %}
+
+        {% if page_obj.number < paginator.num_pages|add:'-3' %}
+        <li class="page-item disabled"><span class="page-link">…</span></li>
+        {% endif %}
+
+        {% if paginator.num_pages > 1 %}
+        <li class="page-item {% if page_obj.number == paginator.num_pages %}active{% endif %}">
+          <a class="page-link" href="?page={{ paginator.num_pages }}{% if request.GET.invoice_id %}&invoice_id={{ request.GET.invoice_id }}{% endif %}">{{ paginator.num_pages }}</a>
+        </li>
+        {% endif %}
+
+        {% if page_obj.has_next %}
+        <li class="page-item">
+          <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.invoice_id %}&invoice_id={{ request.GET.invoice_id }}{% endif %}">&raquo;</a>
+        </li>
+        {% else %}
+        <li class="page-item disabled"><span class="page-link">&raquo;</span></li>
+        {% endif %}
+
+      </ul>
+    </nav>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock content %}

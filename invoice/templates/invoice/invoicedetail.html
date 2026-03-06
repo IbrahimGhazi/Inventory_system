@@ -1,0 +1,197 @@
+{% extends 'store/base.html' %}
+{% block title %}Invoice detail{% endblock %}
+{% load crispy_forms_tags %}
+{% block content %}
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title> Order confirmation </title>
+<meta name="robots" content="noindex,nofollow" />
+<meta name="viewport" content="width=device-width; initial-scale=1.0;" />
+<style>
+  .invoice-receipt {
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    height: fit-content;
+    width: 50%;
+    background-color: #ffffff;
+    font-family: 'courier';
+  }
+</style>
+
+<div class="container text-center m-5">
+  <a class="btn btn-success btn-sm" onclick="window.print()"><i class="fa fa-print"></i> Print</a>
+</div>
+
+<div class="container invoice-receipt p-5">
+  <!-- Header -->
+  <table width="100%" cellpadding="0" cellspacing="0" align="center">
+    <tr>
+      <td>
+        <table width="600" cellpadding="0" cellspacing="0" align="center">
+          <tr>
+            <td>
+              <table width="480" cellpadding="0" cellspacing="0" align="center">
+                <tbody>
+                  <tr>
+                    <td>
+                      <table width="220" cellpadding="0" cellspacing="0" align="left">
+                        <tbody>
+                          <tr>
+                            <td align="left">InventoryMS</td>
+                          </tr>
+                          <tr>
+                            <td style="font-size: 12px; color: #5b5b5b;">
+                              Hello, {{ invoice.customer_name }}<br>
+                              Thank you for shopping from our store and for your order.
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                      <table width="220" cellpadding="0" cellspacing="0" align="right">
+                        <tbody>
+                          <tr>
+                            <td style="font-size: 21px; color: #ff0000; text-align: right;">Invoice</td>
+                          </tr>
+                          <tr>
+                            <td style="font-size: 12px; color: #5b5b5b; text-align: right;">
+                              <small>ORDER</small> #{{ invoice.id }}<br />
+                              <small>{{ invoice.date }}</small>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+
+  <!-- Order Details -->
+  <table width="100%" cellpadding="0" cellspacing="0" align="center">
+    <tbody>
+      <tr>
+        <td>
+          <table width="600" cellpadding="0" cellspacing="0" align="center">
+            <tbody>
+              <tr>
+                <td>
+                  <table width="480" cellpadding="0" cellspacing="0" align="center">
+                    <tbody>
+                      <tr>
+                        <th style="font-size: 12px; color: #5b5b5b;" align="left" width="52%">Item</th>
+                        <th style="font-size: 12px; color: #5b5b5b;" align="center">Quantity</th>
+                        <th style="font-size: 12px; color: #1e2b33;" align="right">Subtotal</th>
+                      </tr>
+                      <tr>
+                        <td height="1" style="background: #bebebe;" colspan="4"></td>
+                      </tr>
+
+                      {% for item in items %}
+                      <tr>
+                        <td style="font-size: 12px; color: #ff0000; padding:10px 0;">
+                          {{ item.item.name }}
+                        </td>
+                        <td style="font-size: 12px; color: #646a6e;" align="center">
+                          {{ item.quantity }}
+                        </td>
+                        <td style="font-size: 12px; color: #1e2b33;" align="right">
+                          Ksh {{ item.total }}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td height="1" colspan="4" style="border-bottom:1px solid #e4e4e4"></td>
+                      </tr>
+                      {% empty %}
+                      <tr>
+                        <td colspan="3" class="text-muted text-center py-3">No items found in this invoice.</td>
+                      </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- Totals -->
+  <table width="100%" cellpadding="0" cellspacing="0" align="center">
+    <tbody>
+      <tr>
+        <td>
+          <table width="600" cellpadding="0" cellspacing="0" align="center">
+            <tbody>
+              <tr>
+                <td>
+                  <table width="480" cellpadding="0" cellspacing="0" align="center">
+                    <tbody>
+                      <tr>
+                        <td style="font-size: 12px; color: #646a6e; text-align:right;">
+                          Subtotal
+                        </td>
+                        <td style="font-size: 12px; color: #646a6e; text-align:right;" width="80">
+                          {{ invoice.total }}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="font-size: 12px; color: #646a6e; text-align:right;">
+                          Shipping &amp; Handling
+                        </td>
+                        <td style="font-size: 12px; color: #646a6e; text-align:right;">
+                          {{ invoice.shipping }}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="font-size: 12px; color: #000; text-align:right;">
+                          <strong>Grand Total</strong>
+                        </td>
+                        <td style="font-size: 12px; color: #000; text-align:right;">
+                          <strong>{{ invoice.grand_total }}</strong>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- Footer -->
+  <table width="100%" cellpadding="0" cellspacing="0" align="center">
+    <tr>
+      <td>
+        <table width="600" cellpadding="0" cellspacing="0" align="center">
+          <tr>
+            <td>
+              <table width="480" cellpadding="0" cellspacing="0" align="center">
+                <tbody>
+                  <tr>
+                    <td style="font-size: 12px; color: #5b5b5b; text-align: left;">
+                      Have a nice day.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </td>
+          </tr>
+          <tr class="spacer">
+            <td height="50"></td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</div>
+{% endblock %}

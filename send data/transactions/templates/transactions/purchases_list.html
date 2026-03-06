@@ -1,0 +1,68 @@
+{% extends "store/base.html" %}
+{% load static %}
+
+{% block title %}Purchases{% endblock title %}
+
+{% block content %}
+<div class="container my-4">
+  <div class="card shadow-sm p-3">
+    <div class="d-flex justify-content-between align-items-center">
+      <h4 class="text-success mb-0">Purchases</h4>
+      <div>
+        <a class="btn btn-success btn-sm" href="{% url 'purchase-create' %}">
+          <i class="fa-solid fa-plus"></i> Add Purchase
+        </a>
+        <a class="btn btn-success btn-sm" href="{% url 'purchases-export' %}">
+          <i class="fa-solid fa-download"></i> Export
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+  <table class="table table-sm table-bordered table-striped">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Vendor</th>
+        <th>Total Qty</th>
+        <th>Total Value</th>
+        <th>Status</th>
+        <th>Delivery Date</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for purchase in purchases %}
+      <tr>
+        <td>{{ purchase.id }}</td>
+        <td>{{ purchase.vendor.name }}</td>
+        <td>{{ purchase.purchase_details.all|length }}</td>
+        <td>{{ purchase.total_value }}</td>
+        <td>
+          {% if purchase.delivery_status == 'P' %}
+            <span class="badge bg-danger">Pending</span>
+          {% else %}
+            <span class="badge bg-success">Successful</span>
+          {% endif %}
+        </td>
+        <td>{{ purchase.delivery_date }}</td>
+        <td>
+          <a class="text-info" href="{% url 'purchase-update' purchase.id %}">
+            <i class="fa-solid fa-pen"></i>
+          </a>
+          <a class="text-danger ms-2" href="{% url 'purchase-delete' purchase.id %}">
+            <i class="fa-solid fa-trash"></i>
+          </a>
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="7" class="text-center">No purchases found</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

@@ -1,0 +1,15 @@
+{% extends "store/base.html" %}
+{% block title %}{% if object %}Edit{% else %}Add{% endif %} Region{% endblock %}
+{% block content %}
+<div class="container py-4" style="max-width: 500px;">
+  <h3>{% if object %}Edit Region{% else %}New Region{% endif %}</h3>
+  <form method="post">
+    {% csrf_token %}
+    <div class="mb-3">{{ form.name.label_tag }}{{ form.name }}</div>
+    <div class="mb-3">{{ form.company.label_tag }}{{ form.company }}</div>
+    <div class="mb-3 form-check">{{ form.is_active }}<label class="form-check-label ms-2">Active</label></div>
+    <button type="submit" class="btn btn-success">Save</button>
+    <a href="{% url 'region-list' %}" class="btn btn-secondary ms-2">Cancel</a>
+  </form>
+</div>
+{% endblock %}

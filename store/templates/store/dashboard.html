@@ -1,0 +1,607 @@
+{% extends "store/base.html" %}
+{% load static %}
+{% block title %}Dashboard{% endblock title %}
+
+{% block stylesheets %}
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --green: #16a34a;
+  --green-light: #dcfce7;
+  --green-dark: #14532d;
+  --amber: #d97706;
+  --amber-light: #fef3c7;
+  --red: #dc2626;
+  --red-light: #fee2e2;
+  --blue: #2563eb;
+  --blue-light: #dbeafe;
+  --slate: #64748b;
+  --surface: #f8fafc;
+  --border: #e2e8f0;
+  --text: #0f172a;
+  --text-muted: #64748b;
+  --card-shadow: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+  --card-shadow-hover: 0 4px 12px rgba(0,0,0,.10);
+}
+
+body { font-family: 'DM Sans', sans-serif; background: var(--surface); color: var(--text); }
+
+.dash-wrap { padding: 1.5rem 1.75rem; }
+
+/* ── Section labels ── */
+.section-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: .75rem;
+}
+
+/* ── Stat cards ── */
+.stat-card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.25rem 1.4rem;
+  box-shadow: var(--card-shadow);
+  transition: box-shadow .2s, transform .15s;
+  position: relative;
+  overflow: hidden;
+  text-decoration: none;
+  display: block;
+  color: inherit;
+}
+.stat-card:hover { box-shadow: var(--card-shadow-hover); transform: translateY(-1px); color: inherit; }
+.stat-card .accent-bar {
+  position: absolute; top: 0; left: 0; right: 0; height: 3px; border-radius: 12px 12px 0 0;
+}
+.stat-card .label { font-size: .78rem; font-weight: 600; color: var(--text-muted); margin-bottom: .3rem; }
+.stat-card .value { font-size: 1.75rem; font-weight: 700; line-height: 1.1; font-family: 'DM Mono', monospace; }
+.stat-card .sub { font-size: .75rem; color: var(--text-muted); margin-top: .4rem; }
+.stat-card .icon-circle {
+  width: 42px; height: 42px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; font-size: 1.1rem;
+}
+.stat-card .change-badge {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: .7rem; font-weight: 700; padding: 2px 7px; border-radius: 99px;
+}
+.badge-up { background: var(--green-light); color: var(--green); }
+.badge-down { background: var(--red-light); color: var(--red); }
+.badge-neutral { background: #f1f5f9; color: var(--slate); }
+
+/* ── Chart cards ── */
+.chart-card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.25rem 1.4rem;
+  box-shadow: var(--card-shadow);
+  height: 100%;
+}
+.chart-card .chart-title { font-size: .85rem; font-weight: 700; color: var(--text); margin-bottom: 1rem; }
+
+/* ── Tables ── */
+.dash-table-card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.25rem 1.4rem;
+  box-shadow: var(--card-shadow);
+}
+.dash-table-card table { font-size: .82rem; margin-bottom: 0; }
+.dash-table-card th { font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); border-bottom: 1px solid var(--border); padding: .5rem .75rem; }
+.dash-table-card td { padding: .55rem .75rem; vertical-align: middle; border-bottom: 1px solid #f1f5f9; }
+.dash-table-card tr:last-child td { border-bottom: none; }
+
+/* ── Stock badge ── */
+.stock-pill {
+  font-size: .7rem; font-weight: 700; padding: 2px 8px; border-radius: 99px; font-family: 'DM Mono', monospace;
+}
+.stock-ok   { background: var(--green-light); color: var(--green); }
+.stock-low  { background: var(--amber-light); color: var(--amber); }
+.stock-zero { background: var(--red-light);   color: var(--red); }
+
+/* ── Backup bar ── */
+.backup-bar { display: flex; gap: .5rem; margin-bottom: 1.5rem; }
+
+/* ── Divider ── */
+.dash-divider { height: 1px; background: var(--border); margin: 1.5rem 0; }
+
+/* ── Responsive tweaks ── */
+@media (max-width: 768px) {
+  .dash-wrap { padding: 1rem; }
+  .stat-card .value { font-size: 1.4rem; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dash-wrap">
+
+  <!-- Backup controls -->
+  <div class="backup-bar">
+    <form method="post" action="{% url 'create_db_backup' %}">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-sm btn-primary">
+        <i class="fa fa-save me-1"></i> Create Backup
+      </button>
+    </form>
+    <a href="{% url 'restore_db_backup' %}" class="btn btn-sm btn-warning">
+      <i class="fa fa-upload me-1"></i> Restore Backup
+    </a>
+  </div>
+
+  <!-- ── ROW 1: Revenue / Purchases / Outstanding / Invoices ── -->
+  <p class="section-label">Financial Overview</p>
+  <div class="row g-3 mb-3">
+
+    <!-- Revenue this month -->
+    <div class="col-xl-3 col-sm-6">
+      <a href="{% url 'invoicelist' %}" class="stat-card">
+        <div class="accent-bar" style="background: var(--green);"></div>
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <div class="label">Revenue This Month</div>
+            <div class="value">Rs {{ revenue_this_month|floatformat:0 }}</div>
+            <div class="sub mt-2">
+              {% if revenue_change is not None %}
+                {% if revenue_change >= 0 %}
+                  <span class="change-badge badge-up"><i class="fa fa-arrow-up"></i> {{ revenue_change }}%</span>
+                {% else %}
+                  <span class="change-badge badge-down"><i class="fa fa-arrow-down"></i> {{ revenue_change|cut:"-" }}%</span>
+                {% endif %}
+                vs last month
+              {% else %}
+                <span class="change-badge badge-neutral">No prior data</span>
+              {% endif %}
+            </div>
+          </div>
+          <div class="icon-circle" style="background: var(--green-light); color: var(--green);">
+            <i class="fa fa-chart-line"></i>
+          </div>
+        </div>
+      </a>
+    </div>
+
+    <!-- Outstanding balance -->
+    <div class="col-xl-3 col-sm-6">
+      <a href="{% url 'customer_list' %}" class="stat-card">
+        <div class="accent-bar" style="background: var(--red);"></div>
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <div class="label">Total Outstanding</div>
+            <div class="value" style="color: var(--red);">Rs {{ total_outstanding|floatformat:0 }}</div>
+            <div class="sub mt-2">Owed by {{ customers_count }} customer{{ customers_count|pluralize }}</div>
+          </div>
+          <div class="icon-circle" style="background: var(--red-light); color: var(--red);">
+            <i class="fa fa-exclamation-circle"></i>
+          </div>
+        </div>
+      </a>
+    </div>
+
+    <!-- Purchases this month -->
+    <div class="col-xl-3 col-sm-6">
+      <a href="{% url 'purchaseslist' %}" class="stat-card">
+        <div class="accent-bar" style="background: var(--blue);"></div>
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <div class="label">Purchases This Month</div>
+            <div class="value">Rs {{ purchases_this_month|floatformat:0 }}</div>
+            <div class="sub mt-2">
+              {% if purchases_change is not None %}
+                {% if purchases_change >= 0 %}
+                  <span class="change-badge badge-up"><i class="fa fa-arrow-up"></i> {{ purchases_change }}%</span>
+                {% else %}
+                  <span class="change-badge badge-down"><i class="fa fa-arrow-down"></i> {{ purchases_change|cut:"-" }}%</span>
+                {% endif %}
+                vs last month
+              {% else %}
+                <span class="change-badge badge-neutral">No prior data</span>
+              {% endif %}
+            </div>
+          </div>
+          <div class="icon-circle" style="background: var(--blue-light); color: var(--blue);">
+            <i class="fa fa-shopping-cart"></i>
+          </div>
+        </div>
+      </a>
+    </div>
+
+    <!-- Invoices this month -->
+    <div class="col-xl-3 col-sm-6">
+      <a href="{% url 'invoicelist' %}" class="stat-card">
+        <div class="accent-bar" style="background: var(--amber);"></div>
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <div class="label">Invoices This Month</div>
+            <div class="value">{{ invoices_this_month }}</div>
+            <div class="sub mt-2">{{ invoices_total }} total all time</div>
+          </div>
+          <div class="icon-circle" style="background: var(--amber-light); color: var(--amber);">
+            <i class="fa fa-receipt"></i>
+          </div>
+        </div>
+      </a>
+    </div>
+
+  </div>
+
+  <!-- ── ROW 2: Products / Stock / Low Stock / Staff ── -->
+  <p class="section-label mt-3">Inventory & Operations</p>
+  <div class="row g-3 mb-4">
+
+    <div class="col-xl-3 col-sm-6">
+      <a href="{% url 'productslist' %}" class="stat-card">
+        <div class="accent-bar" style="background: #8b5cf6;"></div>
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <div class="label">Total Products</div>
+            <div class="value">{{ product_count }}</div>
+            <div class="sub mt-2">{{ total_stock }} units in stock</div>
+          </div>
+          <div class="icon-circle" style="background: #ede9fe; color: #8b5cf6;">
+            <i class="fa fa-clipboard-list"></i>
+          </div>
+        </div>
+      </a>
+    </div>
+
+    <div class="col-xl-3 col-sm-6">
+      <a href="{% url 'productslist' %}" class="stat-card">
+        <div class="accent-bar" style="background: var(--amber);"></div>
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <div class="label">Low Stock Items</div>
+            <div class="value" style="color: var(--amber);">{{ low_stock_count }}</div>
+            <div class="sub mt-2">{{ out_of_stock_count }} completely out of stock</div>
+          </div>
+          <div class="icon-circle" style="background: var(--amber-light); color: var(--amber);">
+            <i class="fa fa-exclamation-triangle"></i>
+          </div>
+        </div>
+      </a>
+    </div>
+
+    <div class="col-xl-3 col-sm-6">
+      <a href="{% url 'deliveries' %}" class="stat-card">
+        <div class="accent-bar" style="background: #06b6d4;"></div>
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <div class="label">Pending Deliveries</div>
+            <div class="value">{{ delivery.count }}</div>
+            <div class="sub mt-2">Awaiting delivery</div>
+          </div>
+          <div class="icon-circle" style="background: #cffafe; color: #06b6d4;">
+            <i class="fa fa-truck"></i>
+          </div>
+        </div>
+      </a>
+    </div>
+
+    <div class="col-xl-3 col-sm-6">
+      <a href="{% url 'profile_list' %}" class="stat-card">
+        <div class="accent-bar" style="background: #ec4899;"></div>
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <div class="label">Staff</div>
+            <div class="value">{{ profiles_count }}</div>
+            <div class="sub mt-2">{{ customers_count }} registered customers</div>
+          </div>
+          <div class="icon-circle" style="background: #fce7f3; color: #ec4899;">
+            <i class="fa fa-users"></i>
+          </div>
+        </div>
+      </a>
+    </div>
+
+  </div>
+
+  <!-- ── CHARTS ROW ── -->
+  <div class="row g-3 mb-4">
+
+    <!-- Revenue vs Purchases line chart -->
+    <div class="col-xl-8">
+      <div class="chart-card">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <div class="chart-title mb-0">Revenue vs Purchases — Last 12 Months</div>
+          <div class="d-flex gap-3" style="font-size:.75rem;">
+            <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--green);margin-right:4px;"></span>Revenue</span>
+            <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--blue);margin-right:4px;"></span>Purchases</span>
+          </div>
+        </div>
+        <div style="height: 260px;">
+          <canvas id="revPurChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Category bar chart -->
+    <div class="col-xl-4">
+      <div class="chart-card">
+        <div class="chart-title">Products by Category</div>
+        <div style="height: 260px; overflow-y: auto;">
+          <canvas id="catChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── STORE STOCK BAR (if stores exist) + TOP CUSTOMERS ── -->
+  <div class="row g-3 mb-4">
+
+    {% if store_labels %}
+    <div class="col-xl-5">
+      <div class="chart-card">
+        <div class="chart-title">Stock by Store</div>
+        <div style="height: 220px;">
+          <canvas id="storeChart"></canvas>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Top customers by outstanding balance -->
+    <div class="col-xl-{% if store_labels %}7{% else %}12{% endif %}">
+      <div class="dash-table-card">
+        <div class="chart-title">Top Customers by Outstanding Balance</div>
+        {% if top_customers %}
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Customer</th>
+              <th class="text-end">Invoiced</th>
+              <th class="text-end">Paid</th>
+              <th class="text-end">Balance</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for c in top_customers %}
+            <tr>
+              <td>
+                <a href="{% url 'customer_ledger' c.pk %}" style="font-weight:600; color: var(--text);">
+                  {{ c.first_name }} {{ c.last_name }}
+                </a>
+              </td>
+              <td class="text-end" style="font-family:'DM Mono',monospace; font-size:.8rem;">Rs {{ c.total_invoiced|floatformat:0 }}</td>
+              <td class="text-end" style="font-family:'DM Mono',monospace; font-size:.8rem;">Rs {{ c.total_paid|floatformat:0 }}</td>
+              <td class="text-end">
+                <span style="font-family:'DM Mono',monospace; font-size:.8rem; font-weight:700; color: var(--red);">
+                  Rs {{ c.balance|floatformat:0 }}
+                </span>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <p class="text-muted" style="font-size:.85rem;">No outstanding balances.</p>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── RECENT INVOICES + LOW STOCK ── -->
+  <div class="row g-3">
+
+    <!-- Recent invoices -->
+    <div class="col-xl-7">
+      <div class="dash-table-card">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <div class="chart-title mb-0">Recent Invoices</div>
+          <a href="{% url 'invoicelist' %}" style="font-size:.78rem; color: var(--green); font-weight:600;">View all →</a>
+        </div>
+        {% if recent_invoices %}
+        <table class="table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Customer</th>
+              <th>Date</th>
+              <th>Store</th>
+              <th class="text-end">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for inv in recent_invoices %}
+            <tr>
+              <td>
+                <a href="{% url 'invoice-detail' inv.uuid %}" style="font-weight:600; color: var(--green); font-family:'DM Mono',monospace; font-size:.8rem;">
+                  #{{ inv.id }}
+                </a>
+              </td>
+              <td style="font-weight:500;">{{ inv.customer.first_name }} {{ inv.customer.last_name }}</td>
+              <td style="color: var(--text-muted);">{{ inv.date|date:"d M Y" }}</td>
+              <td style="color: var(--text-muted);">{{ inv.store.name|default:"—" }}</td>
+              <td class="text-end" style="font-family:'DM Mono',monospace; font-size:.8rem; font-weight:600;">
+                Rs {{ inv.grand_total|floatformat:0 }}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <p class="text-muted" style="font-size:.85rem;">No invoices yet.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Low stock items -->
+    <div class="col-xl-5">
+      <div class="dash-table-card" style="border-top: 3px solid var(--amber);">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <div class="d-flex align-items-center gap-2">
+            <div class="icon-circle" style="background:var(--amber-light);color:var(--amber);width:32px;height:32px;font-size:.85rem;">
+              <i class="fa fa-exclamation-triangle"></i>
+            </div>
+            <span style="font-size:.85rem;font-weight:700;">Low Stock Alert</span>
+            {% if low_stock_count %}
+            <span style="background:var(--amber);color:#fff;font-size:.65rem;font-weight:700;padding:2px 7px;border-radius:99px;">
+              {{ low_stock_count }}
+            </span>
+            {% endif %}
+          </div>
+          <a href="{% url 'productslist' %}" style="font-size:.75rem; color: var(--amber); font-weight:600;">View all →</a>
+        </div>
+        {% if low_stock_items %}
+        <div style="display:flex;flex-direction:column;gap:.35rem;">
+          {% for item in low_stock_items %}
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:.5rem .6rem;border-radius:8px;background:{% if item.stock <= 3 %}#fff7ed{% else %}#fafafa{% endif %};">
+            <div style="min-width:0;flex:1;">
+              <a href="{% url 'product-detail' item.slug %}" style="font-size:.82rem;font-weight:600;color:var(--text);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                {{ item.name }}
+              </a>
+              <span style="font-size:.7rem;color:var(--text-muted);">{{ item.category.name|default:"Uncategorised" }}</span>
+            </div>
+            <div style="flex-shrink:0;margin-left:.75rem;">
+              {% if item.stock == 0 %}
+                <span class="stock-pill stock-zero">OUT</span>
+              {% elif item.stock <= 3 %}
+                <span class="stock-pill stock-low">{{ item.stock }} left</span>
+              {% else %}
+                <span class="stock-pill stock-ok">{{ item.stock }} left</span>
+              {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div style="display:flex;align-items:center;gap:.5rem;padding:.75rem;background:#f0fdf4;border-radius:8px;">
+          <i class="fa fa-check-circle" style="color:var(--green);"></i>
+          <span style="font-size:.82rem;color:var(--green);font-weight:600;">All items well stocked</span>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+</div><!-- /dash-wrap -->
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.4/dist/Chart.min.js"></script>
+<script>
+(function(){
+  Chart.defaults.global.defaultFontFamily = "'DM Sans', sans-serif";
+  Chart.defaults.global.defaultFontSize = 11;
+
+  var labels    = {{ chart_labels|safe }};
+  var revenue   = {{ chart_revenue|safe }};
+  var purchases = {{ chart_purchases|safe }};
+
+  // ── Revenue vs Purchases ──────────────────────────────────────
+  var ctx1 = document.getElementById('revPurChart');
+  if (ctx1) {
+    new Chart(ctx1.getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: 'Revenue',
+            data: revenue,
+            borderColor: '#16a34a',
+            backgroundColor: 'rgba(22,163,74,.07)',
+            fill: true,
+            lineTension: 0.35,
+            borderWidth: 2.5,
+            pointRadius: 3,
+            pointBackgroundColor: '#16a34a',
+          },
+          {
+            label: 'Purchases',
+            data: purchases,
+            borderColor: '#2563eb',
+            backgroundColor: 'rgba(37,99,235,.06)',
+            fill: true,
+            lineTension: 0.35,
+            borderWidth: 2.5,
+            pointRadius: 3,
+            pointBackgroundColor: '#2563eb',
+          }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        scales: {
+          xAxes: [{ gridLines: { color: '#f1f5f9' }, ticks: { maxRotation: 45 } }],
+          yAxes: [{ gridLines: { color: '#f1f5f9' }, ticks: { beginAtZero: true, callback: function(v){ return 'Rs ' + v.toLocaleString(); } } }]
+        },
+        legend: { display: false },
+        tooltips: {
+          mode: 'index', intersect: false,
+          callbacks: { label: function(item, data){ return data.datasets[item.datasetIndex].label + ': Rs ' + Number(item.yLabel).toLocaleString(); } }
+        }
+      }
+    });
+  }
+
+  // ── Category horizontal bar ───────────────────────────────────
+  var catLabels = {{ categories|safe }};
+  var catValues = {{ category_counts|safe }};
+  var ctx2 = document.getElementById('catChart');
+  if (ctx2 && catLabels.length) {
+    // Dynamically size canvas height so all bars fit
+    var barH = 22;
+    ctx2.parentElement.style.height = Math.max(220, catLabels.length * barH + 40) + 'px';
+    ctx2.height = Math.max(220, catLabels.length * barH + 40);
+
+    new Chart(ctx2.getContext('2d'), {
+      type: 'horizontalBar',
+      data: {
+        labels: catLabels,
+        datasets: [{
+          data: catValues,
+          backgroundColor: '#16a34a',
+          hoverBackgroundColor: '#15803d',
+          borderWidth: 0,
+          borderSkipped: false,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        legend: { display: false },
+        scales: {
+          xAxes: [{ gridLines: { color: '#f1f5f9' }, ticks: { beginAtZero: true, precision: 0 } }],
+          yAxes: [{ gridLines: { display: false }, ticks: { fontSize: 10 } }]
+        },
+        tooltips: {
+          callbacks: {
+            label: function(item) { return ' ' + item.xLabel + ' products'; }
+          }
+        }
+      }
+    });
+  }
+
+  // ── Store Stock Bar ───────────────────────────────────────────
+  var storeLabels = {{ store_labels|safe }};
+  var storeValues = {{ store_values|safe }};
+  var storeCompanies = {{ store_companies|safe }};
+  var ctx3 = document.getElementById('storeChart');
+  if (ctx3 && storeLabels.length) {
+    var barColors = storeCompanies.map(function(c){ return c === 'NF' ? '#16a34a' : '#2563eb'; });
+    new Chart(ctx3.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: storeLabels,
+        datasets: [{ label: 'Units', data: storeValues, backgroundColor: barColors, borderRadius: 4, borderWidth: 0 }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        scales: {
+          xAxes: [{ gridLines: { display: false } }],
+          yAxes: [{ gridLines: { color: '#f1f5f9' }, ticks: { beginAtZero: true } }]
+        },
+        legend: { display: false },
+        tooltips: { callbacks: { label: function(item){ return item.yLabel.toLocaleString() + ' units'; } } }
+      }
+    });
+  }
+
+})();
+</script>
+{% endblock content %}

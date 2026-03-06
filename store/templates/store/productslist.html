@@ -1,0 +1,314 @@
+{% extends "store/base.html" %}
+{% load static %}
+{% load querystring from django_tables2 %}
+
+{% block title %}Products{% endblock title %}
+
+{% block stylesheets %}
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --green: #16a34a; --green-light: #dcfce7; --green-dark: #15803d;
+  --amber: #d97706; --amber-light: #fef3c7;
+  --red: #dc2626;   --red-light: #fee2e2;
+  --blue: #2563eb;  --blue-light: #dbeafe;
+  --border: #e2e8f0; --surface: #f8fafc;
+  --text: #0f172a;  --muted: #64748b;
+  --shadow: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+}
+body { font-family: 'DM Sans', sans-serif; background: var(--surface); }
+
+/* ── Page header ── */
+.page-header {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 1rem; margin-bottom: 1.25rem;
+}
+.page-title { font-size: 1.4rem; font-weight: 700; color: var(--text); margin: 0; }
+.page-title span { color: var(--green); }
+
+/* ── Stat strip ── */
+.stat-strip { display: grid; grid-template-columns: repeat(4,1fr); gap: 1rem; margin-bottom: 1.25rem; }
+@media(max-width:700px){ .stat-strip { grid-template-columns: repeat(2,1fr); } }
+.stat-box {
+  background: #fff; border: 1px solid var(--border); border-radius: 12px;
+  padding: .85rem 1.1rem; box-shadow: var(--shadow);
+}
+.stat-box .s-label { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin-bottom: .2rem; }
+.stat-box .s-value { font-size: 1.45rem; font-weight: 700; font-family: 'DM Mono', monospace; line-height: 1.1; }
+
+/* ── Toolbar ── */
+.toolbar {
+  background: #fff; border: 1px solid var(--border); border-radius: 10px;
+  padding: .5rem .85rem; display: flex; align-items: center; gap: .65rem;
+  margin-bottom: 1rem; box-shadow: var(--shadow); flex-wrap: wrap;
+}
+.toolbar input[type=search], .toolbar input[name=q] {
+  border: none; outline: none; flex: 1; font-size: .85rem;
+  font-family: 'DM Sans', sans-serif; background: transparent; min-width: 140px;
+}
+.toolbar select {
+  border: 1px solid var(--border); border-radius: 7px; padding: .28rem .6rem;
+  font-size: .8rem; font-family: 'DM Sans', sans-serif; color: var(--text);
+  background: var(--surface); outline: none; cursor: pointer;
+}
+.toolbar select:focus { border-color: var(--green); }
+.tb-divider { width: 1px; height: 22px; background: var(--border); flex-shrink: 0; }
+.result-count { font-size: .75rem; color: var(--muted); white-space: nowrap; }
+.btn-search {
+  background: var(--green); color: #fff; border: none; border-radius: 7px;
+  padding: .3rem .8rem; font-size: .78rem; font-weight: 600;
+  font-family: 'DM Sans', sans-serif; cursor: pointer; transition: background .15s;
+  white-space: nowrap;
+}
+.btn-search:hover { background: var(--green-dark); }
+
+/* ── Table card ── */
+.table-card {
+  background: #fff; border: 1px solid var(--border); border-radius: 12px;
+  overflow: hidden; box-shadow: var(--shadow);
+}
+.prod-table { width: 100%; border-collapse: collapse; font-size: .83rem; }
+.prod-table thead tr { background: var(--surface); border-bottom: 1px solid var(--border); }
+.prod-table th {
+  padding: .6rem 1rem; font-size: .67rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .08em; color: var(--muted);
+  white-space: nowrap; position: sticky; top: 0; background: var(--surface); z-index: 2;
+}
+.prod-table td { padding: .72rem 1rem; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+.prod-table tbody tr:last-child td { border-bottom: none; }
+.prod-table tbody tr { transition: background .1s; }
+.prod-table tbody tr:hover { background: #f8fafc; }
+
+/* ── S/N badge ── */
+.sn-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 6px; padding: 2px 7px;
+  font-family: 'DM Mono', monospace; font-size: .75rem; color: var(--muted);
+  min-width: 32px; text-align: center;
+}
+
+/* ── Item name ── */
+.item-link { font-weight: 600; color: var(--text); text-decoration: none; display: block; }
+.item-link:hover { color: var(--green); }
+
+/* ── Category pill ── */
+.cat-pill {
+  display: inline-block; font-size: .68rem; font-weight: 600;
+  padding: 2px 8px; border-radius: 99px;
+  background: var(--surface); border: 1px solid var(--border); color: var(--muted);
+}
+
+/* ── Stock ── */
+.qty-pill {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 46px; padding: 3px 9px; border-radius: 8px;
+  font-family: 'DM Mono', monospace; font-size: .8rem; font-weight: 700;
+}
+.qty-ok   { background: var(--green-light); color: var(--green); }
+.qty-low  { background: var(--amber-light); color: var(--amber); }
+.qty-zero { background: var(--red-light);   color: var(--red); }
+
+/* ── Price ── */
+.price-val { font-family: 'DM Mono', monospace; font-size: .82rem; font-weight: 600; }
+
+/* ── Vendor ── */
+.vendor-text { font-size: .8rem; color: var(--muted); font-weight: 500; }
+
+/* ── Action buttons ── */
+.act-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: 7px; border: 1px solid var(--border);
+  color: var(--muted); text-decoration: none; background: #fff;
+  transition: all .15s; font-size: .78rem;
+}
+.act-btn.edit:hover  { background: var(--blue-light); border-color: var(--blue); color: var(--blue); }
+.act-btn.del:hover   { background: var(--red-light);  border-color: var(--red);  color: var(--red); }
+
+/* ── Empty ── */
+.empty-state { text-align: center; padding: 3.5rem 1rem; color: var(--muted); }
+.empty-state i { font-size: 2rem; opacity: .3; display: block; margin-bottom: .75rem; }
+
+/* ── Scrollable tbody ── */
+.table-scroll-wrap { max-height: 680px; overflow-y: auto; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4" style="max-width: 1300px;">
+
+  <!-- ── Page header ── -->
+  <div class="page-header">
+    <h1 class="page-title">Products <span>/ All Items</span></h1>
+    <div style="display:flex; gap:.5rem;">
+      <a href="{% url 'product-create' %}" class="btn btn-success btn-sm fw-semibold">
+        <i class="fa fa-plus me-1"></i> Add Item
+      </a>
+      <a href="{% querystring '_export'='xlsx' %}" class="btn btn-outline-secondary btn-sm">
+        <i class="fa fa-download me-1"></i> Export
+      </a>
+    </div>
+  </div>
+
+  <!-- ── Stat strip ── -->
+  <div class="stat-strip" id="statStrip">
+    <div class="stat-box">
+      <div class="s-label">Total Products</div>
+      <div class="s-value" id="stat-total">{{ items|length }}</div>
+    </div>
+    <div class="stat-box">
+      <div class="s-label">Total Stock Units</div>
+      <div class="s-value" style="color:var(--green);" id="stat-units">—</div>
+    </div>
+    <div class="stat-box">
+      <div class="s-label">Low Stock ≤10</div>
+      <div class="s-value" style="color:var(--amber);" id="stat-low">—</div>
+    </div>
+    <div class="stat-box">
+      <div class="s-label">Out of Stock</div>
+      <div class="s-value" style="color:var(--red);" id="stat-zero">—</div>
+    </div>
+  </div>
+
+  <!-- ── Toolbar ── -->
+  <form method="get">
+    <div class="toolbar">
+      <i class="fa fa-search" style="color:var(--muted); font-size:.85rem; flex-shrink:0;"></i>
+      <input name="q" value="{{ request.GET.q }}" placeholder="Search by name, category, or vendor…" autocomplete="off">
+      <div class="tb-divider"></div>
+      <select name="category" id="catFilterServer">
+        <option value="">All Categories</option>
+        {% for item in items %}
+          {% if item.category %}
+            <option value="{{ item.category.id }}"
+              {% if request.GET.category == item.category.id|stringformat:"s" %}selected{% endif %}>
+              {{ item.category.name }}
+            </option>
+          {% endif %}
+        {% endfor %}
+      </select>
+      <div class="tb-divider"></div>
+      <select id="stockLevel">
+        <option value="">All Stock Levels</option>
+        <option value="ok">Healthy (&gt;10)</option>
+        <option value="low">Low (1–10)</option>
+        <option value="zero">Out of Stock</option>
+      </select>
+      <div class="tb-divider"></div>
+      <button type="submit" class="btn-search"><i class="fa fa-search me-1"></i>Search</button>
+      <a href="{% url 'productslist' %}" style="font-size:.78rem; color:var(--muted); text-decoration:none; white-space:nowrap;">Clear</a>
+      <div class="tb-divider"></div>
+      <span class="result-count" id="rowCount">{{ items|length }} item{{ items|length|pluralize }}</span>
+    </div>
+  </form>
+
+  <!-- ── Table ── -->
+  <div class="table-card">
+    <div class="table-scroll-wrap">
+      <table class="prod-table" id="prodTable">
+        <thead>
+          <tr>
+            <th style="width:52px;">S/N</th>
+            <th>Name</th>
+            <th>Category</th>
+            <th class="text-center" style="width:110px;">Stock</th>
+            <th class="text-end"  style="width:110px;">Price</th>
+            <th style="width:180px;">Vendor</th>
+            <th class="text-center" style="width:90px;">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in items %}
+          <tr class="prod-row"
+              data-stock="{{ item.stock }}"
+              data-level="{% if item.stock == 0 %}zero{% elif item.stock <= 10 %}low{% else %}ok{% endif %}">
+            <td><span class="sn-badge">{{ forloop.counter }}</span></td>
+            <td>
+              <a href="{% url 'product-detail' item.slug %}" class="item-link">{{ item.name }}</a>
+            </td>
+            <td>
+              <span class="cat-pill">{{ item.category.name|default:"—" }}</span>
+            </td>
+            <td class="text-center">
+              {% if item.stock == 0 %}
+                <span class="qty-pill qty-zero">OUT</span>
+              {% elif item.stock <= 5 %}
+                <span class="qty-pill qty-low">{{ item.stock }}</span>
+              {% elif item.stock <= 10 %}
+                <span class="qty-pill qty-low">{{ item.stock }}</span>
+              {% else %}
+                <span class="qty-pill qty-ok">{{ item.stock }}</span>
+              {% endif %}
+            </td>
+            <td class="text-end">
+              <span class="price-val">Rs {{ item.price|floatformat:0 }}</span>
+            </td>
+            <td>
+              <span class="vendor-text">{{ item.vendor.name|default:"—" }}</span>
+            </td>
+            <td class="text-center">
+              <div style="display:inline-flex; gap:.3rem;">
+                <a href="{% url 'product-update' item.slug %}" class="act-btn edit" title="Edit">
+                  <i class="fa fa-pen"></i>
+                </a>
+                <a href="{% url 'product-delete' item.slug %}" class="act-btn del" title="Delete">
+                  <i class="fa fa-trash"></i>
+                </a>
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="7">
+              <div class="empty-state">
+                <i class="fa fa-box-open"></i>
+                <div style="font-weight:600; margin-bottom:.3rem;">No products found</div>
+                <div style="font-size:.82rem;">
+                  Try a different search or <a href="{% url 'product-create' %}" style="color:var(--green);">add a product</a>.
+                </div>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  // ── Compute stats from row data ──
+  var allRows = document.querySelectorAll('#prodTable .prod-row');
+  var totalUnits = 0, lowCount = 0, zeroCount = 0;
+  allRows.forEach(function(r){
+    var qty = parseInt(r.dataset.stock) || 0;
+    totalUnits += qty;
+    if(r.dataset.level === 'low')  lowCount++;
+    if(r.dataset.level === 'zero') zeroCount++;
+  });
+  document.getElementById('stat-units').textContent = totalUnits.toLocaleString();
+  document.getElementById('stat-low').textContent   = lowCount;
+  document.getElementById('stat-zero').textContent  = zeroCount;
+
+  // ── Client-side stock-level filter (combined with server search) ──
+  var stockLevel = document.getElementById('stockLevel');
+  var rowCount   = document.getElementById('rowCount');
+
+  function applyClientFilter(){
+    var level = stockLevel ? stockLevel.value : '';
+    var rows  = document.querySelectorAll('#prodTable .prod-row');
+    var visible = 0;
+    rows.forEach(function(row){
+      var show = !level || row.dataset.level === level;
+      row.style.display = show ? '' : 'none';
+      if(show) visible++;
+    });
+    if(rowCount) rowCount.textContent = visible + ' item' + (visible !== 1 ? 's' : '');
+  }
+
+  if(stockLevel) stockLevel.addEventListener('change', applyClientFilter);
+})();
+</script>
+{% endblock content %}

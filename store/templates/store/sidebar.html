@@ -1,0 +1,284 @@
+<!-- Bootstrap CSS -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<!-- Font Awesome for icons -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+
+<style>
+/* ── Sidebar shell ── */
+.offcanvas-start {
+    width: 260px !important;
+    background-color: #1e2329;
+    color: #fff;
+    border-right: 1px solid rgba(255,255,255,.07) !important;
+}
+
+/* On desktop (≥992px): always visible, push content right */
+@media (min-width: 992px) {
+    #sidebar {
+        transform: none !important;
+        visibility: visible !important;
+        position: fixed;
+        top: 0; left: 0; bottom: 0;
+        z-index: 1030;
+    }
+    /* Push main content wrapper */
+    #wrapper {
+        margin-left: 260px;
+    }
+}
+
+/* On mobile: full offcanvas slide-in, no margin push */
+@media (max-width: 991px) {
+    #wrapper {
+        margin-left: 0 !important;
+    }
+}
+
+/* ── Header ── */
+.sidebar-header {
+    background-color: #141719;
+    padding: 1.1rem 1rem;
+    border-bottom: 1px solid rgba(255,255,255,.08);
+    flex-shrink: 0;
+}
+.sidebar-avatar {
+    width: 42px; height: 42px; border-radius: 50%;
+    object-fit: cover; border: 2px solid rgba(22,163,74,.6);
+}
+.sidebar-username { font-size: .88rem; font-weight: 600; color: #f1f5f9; }
+.role-badge {
+    font-size: .65rem; font-weight: 700; padding: 2px 8px; border-radius: 99px;
+    background: #16a34a; color: #fff; letter-spacing: .04em;
+}
+
+/* ── Nav container ── */
+.nav-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: .5rem .6rem;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,.1) transparent;
+}
+.nav-container::-webkit-scrollbar { width: 4px; }
+.nav-container::-webkit-scrollbar-thumb { background: rgba(255,255,255,.1); border-radius: 99px; }
+
+/* ── Nav links ── */
+.nav-link {
+    color: #94a3b8;
+    border-radius: 8px;
+    padding: .5rem .75rem;
+    font-size: .84rem;
+    font-weight: 500;
+    transition: background .15s, color .15s;
+    display: flex; align-items: center; gap: .5rem;
+}
+.nav-link:hover  { background: rgba(255,255,255,.06); color: #f1f5f9; }
+.nav-link.active { background: rgba(22,163,74,.15);   color: #4ade80; }
+.nav-link i { width: 16px; text-align: center; flex-shrink: 0; }
+
+/* ── Dropdown toggle caret ── */
+.nav-link.dropdown-toggle::after {
+    margin-left: auto; opacity: .5;
+}
+
+/* ── Dropdown menus ── */
+.sidebar-dropdown {
+    background: rgba(255,255,255,.04);
+    border-radius: 8px;
+    margin: 2px 0 4px 0;
+    padding: .25rem 0;
+    list-style: none;
+    overflow: hidden;
+}
+.sidebar-dropdown .dropdown-item {
+    color: #94a3b8;
+    font-size: .8rem;
+    font-weight: 500;
+    padding: .42rem .75rem .42rem 2.35rem;
+    border-radius: 6px;
+    transition: background .12s, color .12s;
+    display: block;
+    text-decoration: none;
+}
+.sidebar-dropdown .dropdown-item:hover  { background: rgba(255,255,255,.07); color: #f1f5f9; }
+.sidebar-dropdown .dropdown-item.active { color: #4ade80; background: rgba(22,163,74,.12); }
+
+/* ── Section label ── */
+.nav-section-label {
+    font-size: .62rem; font-weight: 700; letter-spacing: .1em;
+    text-transform: uppercase; color: #475569;
+    padding: .6rem .75rem .2rem;
+}
+
+/* ── Footer ── */
+.sidebar-footer {
+    background-color: #141719;
+    border-top: 1px solid rgba(255,255,255,.08);
+    padding: .85rem 1rem;
+    flex-shrink: 0;
+}
+.btn-logout {
+    width: 100%; background: rgba(220,38,38,.15); border: 1px solid rgba(220,38,38,.3);
+    color: #f87171; border-radius: 8px; padding: .45rem; font-size: .82rem;
+    font-weight: 600; cursor: pointer; transition: background .15s;
+    display: flex; align-items: center; justify-content: center; gap: .4rem;
+}
+.btn-logout:hover { background: rgba(220,38,38,.28); color: #fca5a5; }
+
+/* ── Offcanvas close button (mobile only) ── */
+.offcanvas-header {
+    background: #141719;
+    border-bottom: 1px solid rgba(255,255,255,.08);
+    padding: .75rem 1rem;
+}
+.offcanvas-header .btn-close { filter: invert(1) opacity(.5); }
+.offcanvas-title { color: #f1f5f9; font-size: .88rem; font-weight: 600; }
+</style>
+
+<!-- ── MOBILE NAVBAR TOGGLER ─────────────────────────────────── -->
+<!-- This button is only visible on mobile and lives INSIDE your navbar in base.html -->
+<!-- Replace your existing navbar-toggler button with this: -->
+<!--
+<button class="navbar-toggler border-0" type="button"
+        data-bs-toggle="offcanvas" data-bs-target="#sidebar" aria-label="Toggle navigation">
+  <i class="fa fa-bars text-white"></i>
+</button>
+-->
+
+<!-- ── SIDEBAR ────────────────────────────────────────────────── -->
+<div class="offcanvas offcanvas-start d-flex flex-column"
+     tabindex="-1"
+     id="sidebar"
+     data-bs-scroll="true"
+     data-bs-backdrop="true"
+     style="height:100vh;">
+
+    <!-- Offcanvas header (close button — mobile only) -->
+    <div class="offcanvas-header d-lg-none">
+        <span class="offcanvas-title">Al Madina Enterprise</span>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+
+    <!-- Profile header -->
+    <div class="sidebar-header d-flex align-items-center gap-2">
+        <a href="{% url 'user-profile' %}" style="text-decoration:none; display:flex; align-items:center; gap:.75rem;">
+            <img class="sidebar-avatar"
+                 src="{{ request.user.profile.profile_picture.url }}"
+                 alt="Profile Picture" />
+            <div>
+                <div class="sidebar-username">
+                    {{ request.user.username }}
+                    {% if request.user.profile.role == 'AD' %}
+                        <i class="fa fa-circle-check text-success ms-1" style="font-size:.7rem;"></i>
+                    {% endif %}
+                </div>
+                <span class="role-badge">
+                    {% if request.user.profile.role == 'AD' %}Admin
+                    {% elif request.user.profile.role == 'EX' %}Executive
+                    {% else %}Operative{% endif %}
+                </span>
+            </div>
+        </a>
+    </div>
+
+    <!-- Nav links -->
+    <div class="nav-container">
+        <ul class="nav flex-column gap-1">
+
+            <!-- Dashboard -->
+            <li class="nav-item">
+                <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}"
+                   href="{% url 'dashboard' %}">
+                    <i class="fa fa-tachometer-alt"></i> Dashboard
+                </a>
+            </li>
+
+            <li><div class="nav-section-label">Inventory</div></li>
+
+            <!-- Products -->
+            <li class="nav-item">
+                <a class="nav-link dropdown-toggle {% if request.resolver_match.url_name in 'productslist category-list' %}active{% endif %}"
+                   href="#productsMenu" data-bs-toggle="collapse" role="button"
+                   aria-expanded="{% if request.resolver_match.url_name in 'productslist category-list' %}true{% else %}false{% endif %}">
+                    <i class="fa fa-box"></i> Products
+                </a>
+                <ul class="sidebar-dropdown collapse {% if request.resolver_match.url_name in 'productslist category-list' %}show{% endif %}" id="productsMenu">
+                    <li><a class="dropdown-item {% if request.resolver_match.url_name == 'productslist' %}active{% endif %}"
+                           href="{% url 'productslist' %}">All Products</a></li>
+                    <li><a class="dropdown-item {% if request.resolver_match.url_name == 'category-list' %}active{% endif %}"
+                           href="{% url 'category-list' %}">Categories</a></li>
+                </ul>
+            </li>
+
+            <!-- Purchase Orders -->
+            <li class="nav-item">
+                <a class="nav-link {% if request.resolver_match.url_name == 'purchaseslist' %}active{% endif %}"
+                   href="{% url 'purchaseslist' %}">
+                    <i class="fa fa-shopping-cart"></i> Purchase Orders
+                </a>
+            </li>
+
+            <li><div class="nav-section-label">Sales</div></li>
+
+            <!-- Invoices -->
+            <li class="nav-item">
+                <a class="nav-link {% if request.resolver_match.url_name == 'invoicelist' %}active{% endif %}"
+                   href="{% url 'invoicelist' %}">
+                    <i class="fa fa-receipt"></i> Invoices
+                </a>
+            </li>
+
+            <li><div class="nav-section-label">People</div></li>
+
+            <!-- Accounts -->
+            <li class="nav-item">
+                <a class="nav-link dropdown-toggle {% if request.resolver_match.url_name in 'profile_list customer_list vendor-list' %}active{% endif %}"
+                   href="#accountsMenu" data-bs-toggle="collapse" role="button"
+                   aria-expanded="{% if request.resolver_match.url_name in 'profile_list customer_list vendor-list' %}true{% else %}false{% endif %}">
+                    <i class="fa fa-users"></i> Accounts
+                </a>
+                <ul class="sidebar-dropdown collapse {% if request.resolver_match.url_name in 'profile_list customer_list vendor-list' %}show{% endif %}" id="accountsMenu">
+                    <li><a class="dropdown-item {% if request.resolver_match.url_name == 'profile_list' %}active{% endif %}"
+                           href="{% url 'profile_list' %}">All Staff</a></li>
+                    <li><a class="dropdown-item {% if request.resolver_match.url_name == 'customer_list' %}active{% endif %}"
+                           href="{% url 'customer_list' %}">Customers</a></li>
+                    <li><a class="dropdown-item {% if request.resolver_match.url_name == 'vendor-list' %}active{% endif %}"
+                           href="{% url 'vendor-list' %}">Vendors</a></li>
+                </ul>
+            </li>
+
+            <li><div class="nav-section-label">Locations</div></li>
+
+            <!-- Locations -->
+            <li class="nav-item">
+                <a class="nav-link dropdown-toggle {% if request.resolver_match.url_name in 'region-list store-list transfer-list store-detail' %}active{% endif %}"
+                   href="#locationsMenu" data-bs-toggle="collapse" role="button"
+                   aria-expanded="{% if request.resolver_match.url_name in 'region-list store-list transfer-list store-detail' %}true{% else %}false{% endif %}">
+                    <i class="fa fa-map-marker-alt"></i> Locations
+                </a>
+                <ul class="sidebar-dropdown collapse {% if request.resolver_match.url_name in 'region-list store-list transfer-list store-detail' %}show{% endif %}" id="locationsMenu">
+                    <li><a class="dropdown-item {% if request.resolver_match.url_name == 'region-list' %}active{% endif %}"
+                           href="{% url 'region-list' %}">Regions</a></li>
+                    <li><a class="dropdown-item {% if request.resolver_match.url_name == 'store-list' %}active{% endif %}"
+                           href="{% url 'store-list' %}">Stores</a></li>
+                    <li><a class="dropdown-item {% if request.resolver_match.url_name == 'transfer-list' %}active{% endif %}"
+                           href="{% url 'transfer-list' %}">Stock Transfers</a></li>
+                </ul>
+            </li>
+
+        </ul>
+    </div>
+
+    <!-- Footer / Logout -->
+    <div class="sidebar-footer">
+        <form method="post" action="{% url 'user-logout' %}">
+            {% csrf_token %}
+            <button type="submit" class="btn-logout">
+                <i class="fa fa-sign-out-alt"></i> Logout
+            </button>
+        </form>
+    </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>

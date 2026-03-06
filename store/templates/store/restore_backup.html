@@ -1,0 +1,28 @@
+{% extends "store/base.html" %}
+{% block title %}Restore Backup{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+  <h3>Restore Database Backup</h3>
+
+  <p class="text-muted">Select one of the backups below to restore. Restoring will overwrite current data.</p>
+
+  <form method="post">
+    {% csrf_token %}
+    <div class="mb-3">
+      <select name="backup" class="form-select" required>
+        {% for b in backups %}
+          <option value="{{ b }}">{{ b }}</option>
+        {% empty %}
+          <option disabled>No backups found</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <button type="submit" class="btn btn-danger">Restore</button>
+    <a href="{% url 'dashboard' %}" class="btn btn-secondary ms-2">Cancel</a>
+  </form>
+
+  <p class="mt-3 text-danger"><strong>Warning:</strong> This action will overwrite the current database file.</p>
+</div>
+{% endblock %}

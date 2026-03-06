@@ -1,0 +1,26 @@
+{% extends "store/base.html" %}
+{% block title %}New Stock Transfer{% endblock %}
+{% block content %}
+<div class="container py-4" style="max-width: 600px;">
+  <h3>New Stock Transfer</h3>
+  <p class="text-muted">Move stock from one store to another. Use this to send goods from Naughtyfish to SeaStar.</p>
+
+  {% if form.errors %}
+    <div class="alert alert-danger">
+      {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+      {% for field in form %}{% for error in field.errors %}<div>{{ field.label }}: {{ error }}</div>{% endfor %}{% endfor %}
+    </div>
+  {% endif %}
+
+  <form method="post">
+    {% csrf_token %}
+    <div class="mb-3">{{ form.from_store.label_tag }}{{ form.from_store }}</div>
+    <div class="mb-3">{{ form.to_store.label_tag }}{{ form.to_store }}</div>
+    <div class="mb-3">{{ form.item.label_tag }}{{ form.item }}</div>
+    <div class="mb-3">{{ form.quantity.label_tag }}{{ form.quantity }}</div>
+    <div class="mb-3">{{ form.note.label_tag }}{{ form.note }}</div>
+    <button type="submit" class="btn btn-success">Execute Transfer</button>
+    <a href="{% url 'transfer-list' %}" class="btn btn-secondary ms-2">Cancel</a>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,63 @@
+{% extends "store/base.html" %}
+{% load crispy_forms_tags %}
+{% block title %}Create staff{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="row justify-content-center">
+    <div class="col-md-8 col-lg-7">
+      <h2 class="text-success mb-3">Create staff profile</h2>
+
+      {# Django messages (success / error) #}
+      {% if messages %}
+        {% for msg in messages %}
+          <div class="alert {% if msg.tags %}alert-{{ msg.tags }}{% else %}alert-info{% endif %}">
+            {{ msg }}
+          </div>
+        {% endfor %}
+      {% endif %}
+
+      <form method="post" enctype="multipart/form-data" novalidate>
+        {% csrf_token %}
+
+        {# show non-field errors (if any) #}
+        {% if user_form.non_field_errors %}
+          <div class="alert alert-danger">{{ user_form.non_field_errors }}</div>
+        {% endif %}
+        {% if profile_form.non_field_errors %}
+          <div class="alert alert-danger">{{ profile_form.non_field_errors }}</div>
+        {% endif %}
+
+        <h5>User account</h5>
+        {{ user_form|crispy }}
+
+        <hr/>
+
+        <h5>Profile (optional)</h5>
+        {{ profile_form|crispy }}
+
+        <div class="text-center mt-3 mb-4">
+          <button type="submit" class="btn btn-success">Create Staff</button>
+        </div>
+      </form>
+
+      {# Debug output: show validation errors and posted data if present #}
+      {% if debug_errors %}
+        <div class="card mt-3">
+          <div class="card-body">
+            <h6 class="card-title">Server debug (validation)</h6>
+            <pre style="white-space:pre-wrap;">User form errors:
+{{ debug_errors.user_errors }}
+
+Profile form errors:
+{{ debug_errors.profile_errors }}
+
+Posted data:
+{{ debug_errors.posted }}</pre>
+          </div>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

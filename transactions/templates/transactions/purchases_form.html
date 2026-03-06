@@ -1,0 +1,234 @@
+{% extends "store/base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container my-4">
+  <h3>{% if object %}Edit Purchase{% else %}New Purchase{% endif %}</h3>
+
+  <form method="post" id="purchase-form">
+    {% csrf_token %}
+
+    <!-- Purchase header -->
+    <div class="card p-3 mb-3">
+      <h5>Purchase Info</h5>
+      <div class="row mb-2">
+        <div class="col-md-12">
+          {{ form.store.label_tag }} {{ form.store }}
+        </div>
+      </div>
+      <div class="row mb-2">
+        <div class="col-md-6">
+          {{ form.vendor.label_tag }} {{ form.vendor }}
+        </div>
+        <div class="col-md-6">
+          {{ form.delivery_date.label_tag }} {{ form.delivery_date }}
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-12">
+          {{ form.description.label_tag }} {{ form.description }}
+        </div>
+      </div>
+    </div>
+
+    <!-- Purchase lines -->
+    <div class="card p-3">
+      <h5>Purchase Lines</h5>
+
+      <table class="table table-sm table-bordered">
+        <thead>
+          <tr>
+            <th style="width:25%">Category</th>
+            <th style="width:45%">Item</th>
+            <th style="width:10%">Qty</th>
+            <th style="width:15%">Price</th>
+            <th style="width:5%"></th>
+          </tr>
+        </thead>
+        <tbody id="lines-body"></tbody>
+      </table>
+
+      <button type="button" class="btn btn-outline-primary btn-sm" id="add-line">
+        + Add Line
+      </button>
+    </div>
+
+    {{ categories|json_script:"categories-data" }}
+    {{ items|json_script:"items-data" }}
+    {{ existing_lines|json_script:"existing-lines-data" }}
+
+    <input type="hidden" name="details_json" id="details_json">
+    <input type="hidden" name="total_value" id="total_value">
+
+    <div class="mt-3">
+      <button type="submit" class="btn btn-success">Save</button>
+      <a class="btn btn-secondary" href="{% url 'purchaseslist' %}">Back</a>
+    </div>
+  </form>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+  function normalize(data) {
+    if (Array.isArray(data)) return data;
+    if (data && typeof data === "object") return Object.values(data);
+    return [];
+  }
+
+  const rawCategories = normalize(
+    JSON.parse(document.getElementById("categories-data").textContent)
+  );
+
+  const items = normalize(
+    JSON.parse(document.getElementById("items-data").textContent)
+  );
+
+  const existing = normalize(
+    JSON.parse(document.getElementById("existing-lines-data").textContent)
+  );
+
+  /* -------------------------------------------------
+     FIX #1: ENSURE CATEGORIES EXIST
+     ------------------------------------------------- */
+  let categories = rawCategories;
+
+  if (!categories.length) {
+    const seen = {};
+    items.forEach(i => {
+      if (i.category_id && !seen[i.category_id]) {
+        seen[i.category_id] = {
+          id: i.category_id,
+          name: i.category_name || `Category ${i.category_id}`
+        };
+      }
+    });
+    categories = Object.values(seen);
+  }
+
+  const linesBody = document.getElementById("lines-body");
+  const addBtn = document.getElementById("add-line");
+  const form = document.getElementById("purchase-form");
+
+  function getStock(item) {
+    return (
+      item.stock ??
+      item.total_stock ??
+      item.quantity ??
+      0
+    );
+  }
+
+  function createCategorySelect(selected) {
+    const sel = document.createElement("select");
+    sel.className = "form-control category-select";
+    sel.innerHTML = `<option value="">-- Category --</option>`;
+    categories.forEach(c => {
+      sel.innerHTML += `<option value="${c.id}">${c.name}</option>`;
+    });
+    if (selected) sel.value = selected;
+    return sel;
+  }
+
+  function createItemSelect(categoryId, selected) {
+    const sel = document.createElement("select");
+    sel.className = "form-control item-select";
+    sel.innerHTML = `<option value="">-- Item --</option>`;
+
+    items
+      .filter(i => String(i.category_id) === String(categoryId))
+      .forEach(i => {
+        sel.innerHTML += `
+          <option value="${i.id}">
+            ${i.name} (Stock: ${getStock(i)})
+          </option>
+        `;
+      });
+
+    if (selected) sel.value = selected;
+    return sel;
+  }
+
+  function addRow(prefill = {}) {
+    const tr = document.createElement("tr");
+
+    const tdCat = document.createElement("td");
+    const tdItem = document.createElement("td");
+    const tdQty = document.createElement("td");
+    const tdPrice = document.createElement("td");
+    const tdDel = document.createElement("td");
+
+    const catSel = createCategorySelect(prefill.category_id);
+    const itemSel = createItemSelect(prefill.category_id, prefill.item_id);
+
+    catSel.addEventListener("change", () => {
+      tdItem.innerHTML = "";
+      tdItem.appendChild(createItemSelect(catSel.value));
+    });
+
+    tdCat.appendChild(catSel);
+    tdItem.appendChild(itemSel);
+
+    const qty = document.createElement("input");
+    qty.type = "number";
+    qty.min = "1";
+    qty.value = prefill.quantity || 1;
+    qty.className = "form-control";
+
+    const price = document.createElement("input");
+    price.type = "number";
+    price.step = "0.01";
+    price.value = prefill.price || 0;
+    price.className = "form-control";
+
+    tdQty.appendChild(qty);
+    tdPrice.appendChild(price);
+
+    const delBtn = document.createElement("button");
+    delBtn.type = "button";
+    delBtn.className = "btn btn-sm btn-danger";
+    delBtn.textContent = "✕";
+    delBtn.onclick = () => tr.remove();
+
+    tdDel.appendChild(delBtn);
+
+    tr.append(tdCat, tdItem, tdQty, tdPrice, tdDel);
+    linesBody.appendChild(tr);
+  }
+
+  if (existing.length) {
+    existing.forEach(addRow);
+  } else {
+    addRow();
+  }
+
+  addBtn.addEventListener("click", () => addRow());
+
+  form.addEventListener("submit", function () {
+    const lines = [];
+    let total = 0;
+
+    linesBody.querySelectorAll("tr").forEach(tr => {
+      const itemSel = tr.querySelector(".item-select");
+      if (!itemSel || !itemSel.value) return;
+
+      const inputs = tr.querySelectorAll("input");
+      const qty = Number(inputs[0].value);
+      const price = Number(inputs[1].value);
+
+      lines.push({
+        item_id: Number(itemSel.value),
+        quantity: qty,
+        price: price
+      });
+
+      total += qty * price;
+    });
+
+    document.getElementById("details_json").value = JSON.stringify(lines);
+    document.getElementById("total_value").value = total.toFixed(2);
+  });
+
+});
+</script>
+{% endblock %}

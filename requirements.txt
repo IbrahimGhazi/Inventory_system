@@ -1,0 +1,35 @@
+asgiref==3.10.0
+certifi==2025.10.5
+charset-normalizer==3.4.4
+crispy-bootstrap5==2024.2
+Django==5.1
+django-appconf==1.1.0
+django-autoslug==1.9.9
+django-crispy-forms==2.3
+django-extensions==3.2.3
+django-filter==24.3
+django-imagekit==5.0.0
+django-phonenumber-field==8.0.0
+django-tables2==2.7.0
+django-widget-tweaks==1.5.0
+et_xmlfile==2.0.0
+idna==3.11
+openpyxl==3.1.5
+phonenumbers==8.13.43
+pilkit==3.0
+pillow==12.0.0
+reportlab==4.4.4
+requests==2.32.3
+sqlparse==0.5.3
+tablib==3.6.1
+typing_extensions==4.15.0
+urllib3==2.5.0
+
+# ── Supabase sync (local mode) ────────────────────────────────────────────────
+supabase==2.15.0
+
+# ── Railway / Production ──────────────────────────────────────────────────────
+gunicorn==23.0.0
+whitenoise==6.9.0
+psycopg2-binary==2.9.10
+dj-database-url==2.3.0

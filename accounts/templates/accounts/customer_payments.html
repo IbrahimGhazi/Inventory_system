@@ -1,0 +1,38 @@
+{% extends "store/base.html" %}
+{% block content %}
+<div class="container my-4">
+  <h3>Payments for {{ customer.get_full_name }}</h3>
+  <p>
+    <strong>Invoiced:</strong> {{ customer.total_invoiced }} &nbsp;
+    <strong>Paid:</strong> {{ customer.total_paid }} &nbsp;
+    <strong>Balance:</strong> {{ customer.balance }}
+  </p>
+
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Amount</th>
+        <th>Cheque</th>
+        <th>Remarks</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in payments %}
+        <tr>
+          <td>{{ p.date }}</td>
+          <td>{{ p.amount }}</td>
+          <td>{{ p.cheque_number }}</td>
+          <td>{{ p.remarks }}</td>
+        </tr>
+      {% empty %}
+        <tr>
+          <td colspan="4">No payments yet.</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <a class="btn btn-secondary" href="{% url 'customerslist' %}">Back</a>
+</div>
+{% endblock %}
