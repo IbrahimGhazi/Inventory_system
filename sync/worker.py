@@ -21,7 +21,6 @@ def _flush_pending():
     """Try to process all PendingSync rows."""
     try:
         from sync.models import PendingSync
-        from sync.supabase_sync import get_client
         from django.apps import apps
 
         pending = list(PendingSync.objects.order_by('created_at')[:200])
