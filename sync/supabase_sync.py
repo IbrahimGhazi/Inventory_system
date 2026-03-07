@@ -374,3 +374,55 @@ def sync_all_data():
         logger.info('Synced %d / %d  %s', count, len(row_list), table)
 
     logger.info('Full sync complete.')
+    
+def restore_all_from_supabase():
+    import requests
+    from django.apps import apps
+    from django.conf import settings
+
+    headers = {
+        "apikey": settings.SUPABASE_KEY,
+        "Authorization": f"Bearer {settings.SUPABASE_KEY}",
+        "Content-Type": "application/json"
+    }
+
+    models = apps.get_models()
+
+    for model in models:
+
+        table = model._meta.db_table
+        app = model._meta.app_label
+
+        # Skip Django system tables
+        if app in ["admin", "contenttypes", "sessions", "auth"]:
+            continue
+
+        print(f"\n🔄 Restoring {table}")
+
+        url = f"{settings.SUPABASE_URL}/rest/v1/{table}?select=*"
+
+        r = requests.get(url, headers=headers)
+
+        if r.status_code != 200:
+            print("❌ Error:", r.text)
+            continue
+
+        rows = r.json()
+
+        if not rows:
+            print("⚠️ No rows")
+            continue
+
+        for row in rows:
+
+            pk = row.get("id")
+
+            if pk:
+                model.objects.update_or_create(
+                    id=pk,
+                    defaults=row
+                )
+            else:
+                model.objects.create(**row)
+
+        print(f"✅ Loaded {len(rows)} rows")
