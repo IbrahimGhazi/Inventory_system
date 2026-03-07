@@ -386,6 +386,9 @@ def restore_all_from_supabase():
         "Content-Type": "application/json"
     }
 
+    print("\n🔎 Detecting Supabase tables...\n")
+
+    # Get all django models
     models = apps.get_models()
 
     for model in models:
@@ -393,25 +396,38 @@ def restore_all_from_supabase():
         table = model._meta.db_table
         app = model._meta.app_label
 
-        # Skip Django system tables
-        if app in ["admin", "contenttypes", "sessions", "auth"]:
+        # Skip system tables
+        if app in ["admin", "contenttypes", "sessions"]:
             continue
 
-        print(f"\n🔄 Restoring {table}")
+        possible_tables = [
+            table,
+            table + "s",
+            table.replace("_", "") + "s"
+        ]
 
-        url = f"{settings.SUPABASE_URL}/rest/v1/{table}?select=*"
+        rows = []
 
-        r = requests.get(url, headers=headers)
+        for t in possible_tables:
 
-        if r.status_code != 200:
-            print("❌ Error:", r.text)
-            continue
+            url = f"{settings.SUPABASE_URL}/rest/v1/{t}?select=*"
 
-        rows = r.json()
+            r = requests.get(url, headers=headers)
+
+            if r.status_code != 200:
+                continue
+
+            rows = r.json()
+
+            if rows:
+                table = t
+                break
 
         if not rows:
-            print("⚠️ No rows")
+            print(f"⚠️ {table} → no data found")
             continue
+
+        print(f"🔄 Restoring {table} ({len(rows)} rows)")
 
         for row in rows:
 
@@ -426,3 +442,5 @@ def restore_all_from_supabase():
                 model.objects.create(**row)
 
         print(f"✅ Loaded {len(rows)} rows")
+
+    print("\n🎉 Restore finished\n")
