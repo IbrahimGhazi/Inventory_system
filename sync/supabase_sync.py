@@ -423,7 +423,9 @@ TABLE_MAP = {
     "auth_user": "auth_users",
     # add more mappings if needed
 }
-RESTORE_ORDER = {
+
+# Order matters: list of supabase table names in dependency-safe order
+RESTORE_ORDER = [
     "auth_users",
     "accounts_vendors",
     "accounts_profiles",
@@ -448,8 +450,10 @@ RESTORE_ORDER = {
     "invoice_invoices",
     "invoice_invoiceitems",
 
-    "bills_bills"
-}
+    "bills_bills",
+]
+
+
 # Supabase/internal tables we never want to restore into Django models:
 EXCLUDED_SUPABASE_TABLES = {
     "django_migrations",
@@ -577,52 +581,40 @@ def restore_all_from_supabase():
     for sup_table, model in supabase_to_model.items():
         print(f"  {sup_table} -> {model._meta.app_label}.{model.__name__}")
 
-    # Now fetch & restore per table
-    # Restore tables in dependency-safe order
-for sup_table in RESTORE_ORDER:
+    # Restore tables in dependency-safe order (only process tables we actually mapped)
+    for sup_table in RESTORE_ORDER:
+        model = supabase_to_model.get(sup_table)
+        if not model:
+            # skip sup_table if there's no model mapping / it's not present in Supabase
+            continue
 
-    model = supabase_to_model.get(sup_table)
+        print(f"\nFetching {sup_table} ...")
+        rows = _fetch_supabase_rows(sup_table)
+        if not rows:
+            print(f"⚠️ {sup_table} → no data found")
+            continue
 
-    if not model:
-        continue
+        print(f"🔄 Restoring {sup_table} ({len(rows)} rows) -> {model._meta.db_table}")
 
-    print(f"\nFetching {sup_table} ...")
+        restored = 0
+        errors = 0
 
-    rows = _fetch_supabase_rows(sup_table)
+        # We perform updates inside a transaction for consistency.
+        # For very large tables you may want to chunk and/or use a bulk-upsert strategy.
+        with transaction.atomic():
+            for row in rows:
+                try:
+                    pk = row.get("id")
+                    if pk is not None:
+                        # Use update_or_create to preserve existing rows
+                        model.objects.update_or_create(id=pk, defaults=row)
+                    else:
+                        model.objects.create(**row)
+                    restored += 1
+                except Exception as e:
+                    errors += 1
+                    logger.warning("Failed to restore row into %s: %s (row id=%s)", model._meta.db_table, e, row.get("id"))
 
-    if not rows:
-        print(f"⚠️ {sup_table} → no data found")
-        continue
+        print(f"✅ Loaded {restored} rows into {model._meta.db_table} (errors: {errors})")
 
-    print(f"🔄 Restoring {sup_table} ({len(rows)} rows) -> {model._meta.db_table}")
-
-    restored = 0
-    errors = 0
-
-    with transaction.atomic():
-        for row in rows:
-            try:
-                pk = row.get("id")
-
-                if pk is not None:
-                    model.objects.update_or_create(
-                        id=pk,
-                        defaults=row
-                    )
-                else:
-                    model.objects.create(**row)
-
-                restored += 1
-
-            except Exception as e:
-                errors += 1
-                logger.warning(
-                    "Failed to restore row into %s: %s (row id=%s)",
-                    model._meta.db_table,
-                    e,
-                    row.get("id")
-                )
-
-    print(f"✅ Loaded {restored} rows into {model._meta.db_table} (errors: {errors})")
-
-print("\n🎉 Restore finished\n")
+    print("\n🎉 Restore finished\n")
