@@ -376,70 +376,56 @@ def sync_all_data():
     logger.info('Full sync complete.')
     
 def restore_all_from_supabase():
+    import requests
+    from django.apps import apps
+    from django.conf import settings
 
-            import requests
-            from django.apps import apps
-            from django.conf import settings
+    headers = {
+        "apikey": settings.SUPABASE_KEY,
+        "Authorization": f"Bearer {settings.SUPABASE_KEY}",
+        "Content-Type": "application/json",
+    }
 
-            headers = {
-                "apikey": settings.SUPABASE_KEY,
-                "Authorization": f"Bearer {settings.SUPABASE_KEY}",
-                "Content-Type": "application/json"
-            }
+    print("\n🔎 Detecting Django tables...\n")
 
-            print("\n🔎 Fetching Supabase tables...\n")
+    models = apps.get_models()
 
-            from django.apps import apps
+    tables = [m._meta.db_table for m in models]
 
-        print("\n🔎 Detecting Django tables...\n")
+    print("Tables:", tables)
 
-        models = apps.get_models()
+    for model in models:
 
-        tables = [m._meta.db_table for m in models]
+        table = model._meta.db_table
 
-        print("Tables:", tables)
+        url = f"{settings.SUPABASE_URL}/rest/v1/{table}?select=*"
 
-            print("Found tables:", tables)
+        r = requests.get(url, headers=headers)
 
-            models = apps.get_models()
+        if r.status_code != 200:
+            print(f"⚠️ {table} API error")
+            continue
 
-            model_map = {m._meta.db_table: m for m in models}
+        rows = r.json()
 
-            for table in tables:
+        if not rows:
+            print(f"⚠️ {table} → no data found")
+            continue
 
-                if table not in model_map:
-                    continue
+        print(f"🔄 Restoring {table} ({len(rows)} rows)")
 
-                model = model_map[table]
+        for row in rows:
 
-                print(f"\n🔄 Restoring {table}")
+            pk = row.get("id")
 
-                url = f"{settings.SUPABASE_URL}/rest/v1/{table}?select=*"
+            if pk:
+                model.objects.update_or_create(
+                    id=pk,
+                    defaults=row
+                )
+            else:
+                model.objects.create(**row)
 
-                r = requests.get(url, headers=headers)
+        print(f"✅ Loaded {len(rows)} rows")
 
-                if r.status_code != 200:
-                    print("❌ API error:", r.text)
-                    continue
-
-                rows = r.json()
-
-                if not rows:
-                    print("⚠️ No rows")
-                    continue
-
-                for row in rows:
-
-                    pk = row.get("id")
-
-                    if pk:
-                        model.objects.update_or_create(
-                            id=pk,
-                            defaults=row
-                        )
-                    else:
-                        model.objects.create(**row)
-
-                print(f"✅ Loaded {len(rows)} rows")
-
-            print("\n🎉 Restore complete\n")
+    print("\n🎉 Restore finished\n")
