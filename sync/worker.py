@@ -28,6 +28,7 @@ def _flush_pending():
             return
 
         logger.info('Flushing %d pending sync(s)...', len(pending))
+        from sync.supabase_sync import get_client
         client = get_client()
 
         for entry in pending:
@@ -88,7 +89,7 @@ def _worker_loop():
         time.sleep(RETRY_INTERVAL)
 
 
-def start():
+def start():get_client()
     """Spawn the background worker daemon thread (called once at startup)."""
     global _thread
     if _thread is not None and _thread.is_alive():
