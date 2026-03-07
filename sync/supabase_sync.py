@@ -376,58 +376,53 @@ def sync_all_data():
     logger.info('Full sync complete.')
     
 def restore_all_from_supabase():
+
     import requests
     from django.apps import apps
     from django.conf import settings
 
     headers = {
         "apikey": settings.SUPABASE_KEY,
-        "Authorization": f"Bearer {settings.SUPABASE_KEY}",
+        "Authorization": f"Bearer {settings.SUPABASE_KEY},
         "Content-Type": "application/json"
     }
 
-    print("\n🔎 Detecting Supabase tables...\n")
+    print("\n🔎 Fetching Supabase tables...\n")
 
-    # Get all django models
+    url = f"{settings.SUPABASE_URL}/rest/v1/information_schema.tables?table_schema=eq.public&select=table_name"
+
+    r = requests.get(url, headers=headers)
+
+    tables = [t["table_name"] for t in r.json()]
+
+    print("Found tables:", tables)
+
     models = apps.get_models()
 
-    for model in models:
+    model_map = {m._meta.db_table: m for m in models}
 
-        table = model._meta.db_table
-        app = model._meta.app_label
+    for table in tables:
 
-        # Skip system tables
-        if app in ["admin", "contenttypes", "sessions"]:
+        if table not in model_map:
             continue
 
-        possible_tables = [
-            table,
-            table + "s",
-            table.replace("_", "") + "s"
-        ]
+        model = model_map[table]
 
-        rows = []
+        print(f"\n🔄 Restoring {table}")
 
-        for t in possible_tables:
+        url = f"{settings.SUPABASE_URL}/rest/v1/{table}?select=*"
 
-            url = f"{settings.SUPABASE_URL}/rest/v1/{t}?select=*"
+        r = requests.get(url, headers=headers)
 
-            r = requests.get(url, headers=headers)
+        if r.status_code != 200:
+            print("❌ API error:", r.text)
+            continue
 
-            if r.status_code != 200:
-                continue
-
-            rows = r.json()
-
-            if rows:
-                table = t
-                break
+        rows = r.json()
 
         if not rows:
-            print(f"⚠️ {table} → no data found")
+            print("⚠️ No rows")
             continue
-
-        print(f"🔄 Restoring {table} ({len(rows)} rows)")
 
         for row in rows:
 
@@ -443,4 +438,4 @@ def restore_all_from_supabase():
 
         print(f"✅ Loaded {len(rows)} rows")
 
-    print("\n🎉 Restore finished\n")
+    print("\n🎉 Restore complete\n")
