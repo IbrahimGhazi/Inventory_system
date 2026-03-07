@@ -423,7 +423,33 @@ TABLE_MAP = {
     "auth_user": "auth_users",
     # add more mappings if needed
 }
+RESTORE_ORDER = {
+    "auth_users",
+    "accounts_vendors",
+    "accounts_profiles",
+    "accounts_customers",
+    "accounts_payments",
 
+    "store_categories",
+    "store_colors",
+    "store_items",
+    "store_productvariants",
+
+    "locations_regions",
+    "locations_stores",
+    "locations_storestocks",
+    "locations_stocktransfers",
+
+    "transactions_sales",
+    "transactions_saledetails",
+    "transactions_purchases",
+    "transactions_purchasedetails",
+
+    "invoice_invoices",
+    "invoice_invoiceitems",
+
+    "bills_bills"
+}
 # Supabase/internal tables we never want to restore into Django models:
 EXCLUDED_SUPABASE_TABLES = {
     "django_migrations",
