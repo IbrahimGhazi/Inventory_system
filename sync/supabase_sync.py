@@ -578,7 +578,12 @@ def restore_all_from_supabase():
         print(f"  {sup_table} -> {model._meta.app_label}.{model.__name__}")
 
     # Now fetch & restore per table
-    for sup_table, model in supabase_to_model.items():
+    for sup_table, model in supabase_to_model.ifor sup_table in RESTORE_ORDER:
+
+    model = supabase_to_model.get(sup_table)
+
+    if not model:
+        continuetems():
         print(f"\nFetching {sup_table} ...")
         rows = _fetch_supabase_rows(sup_table)
         if not rows:
