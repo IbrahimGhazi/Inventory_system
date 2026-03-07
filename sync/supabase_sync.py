@@ -578,41 +578,51 @@ def restore_all_from_supabase():
         print(f"  {sup_table} -> {model._meta.app_label}.{model.__name__}")
 
     # Now fetch & restore per table
-    for sup_table, model in supabase_to_model.ifor sup_table in RESTORE_ORDER:
+    # Restore tables in dependency-safe order
+for sup_table in RESTORE_ORDER:
 
     model = supabase_to_model.get(sup_table)
 
     if not model:
-        continuetems():
-        print(f"\nFetching {sup_table} ...")
-        rows = _fetch_supabase_rows(sup_table)
-        if not rows:
-            print(f"⚠️ {sup_table} → no data found")
-            continue
+        continue
 
-        print(f"🔄 Restoring {sup_table} ({len(rows)} rows) -> {model._meta.db_table}")
+    print(f"\nFetching {sup_table} ...")
 
-        restored = 0
-        errors = 0
+    rows = _fetch_supabase_rows(sup_table)
 
-        # We perform updates inside a transaction for consistency.
-        # For large tables you may want to chunk and/or use more efficient bulk logic.
-        with transaction.atomic():
-            for row in rows:
-                try:
-                    pk = row.get("id")
-                    if pk is not None:
-                        # Use update_or_create to preserve existing rows
-                        model.objects.update_or_create(id=pk, defaults=row)
-                        restored += 1
-                    else:
-                        # no id -> try to create
-                        model.objects.create(**row)
-                        restored += 1
-                except Exception as e:
-                    errors += 1
-                    logger.warning("Failed to restore row into %s: %s (row id=%s)", model._meta.db_table, e, row.get("id"))
+    if not rows:
+        print(f"⚠️ {sup_table} → no data found")
+        continue
 
-        print(f"✅ Loaded {restored} rows into {model._meta.db_table} (errors: {errors})")
+    print(f"🔄 Restoring {sup_table} ({len(rows)} rows) -> {model._meta.db_table}")
 
-    print("\n🎉 Restore finished\n")
+    restored = 0
+    errors = 0
+
+    with transaction.atomic():
+        for row in rows:
+            try:
+                pk = row.get("id")
+
+                if pk is not None:
+                    model.objects.update_or_create(
+                        id=pk,
+                        defaults=row
+                    )
+                else:
+                    model.objects.create(**row)
+
+                restored += 1
+
+            except Exception as e:
+                errors += 1
+                logger.warning(
+                    "Failed to restore row into %s: %s (row id=%s)",
+                    model._meta.db_table,
+                    e,
+                    row.get("id")
+                )
+
+    print(f"✅ Loaded {restored} rows into {model._meta.db_table} (errors: {errors})")
+
+print("\n🎉 Restore finished\n")
