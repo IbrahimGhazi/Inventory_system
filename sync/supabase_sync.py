@@ -383,7 +383,7 @@ def restore_all_from_supabase():
 
     headers = {
         "apikey": settings.SUPABASE_KEY,
-        "Authorization": f"Bearer {settings.SUPABASE_KEY},
+        "Authorization": f"Bearer {settings.SUPABASE_KEY}",
         "Content-Type": "application/json"
     }
 
