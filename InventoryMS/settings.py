@@ -67,30 +67,42 @@ TEMPLATES = [
 WSGI_APPLICATION = 'InventoryMS.wsgi.application'
 
 # ── DATABASE ──────────────────────────────────────────────────────────────────
-# When DATABASE_URL is set (Railway/Supabase) → PostgreSQL
-# Otherwise → SQLite for local offline use
+# Railway/Supabase (DATABASE_URL set) → PostgreSQL, no REST sync needed
+# Local offline machine (no DATABASE_URL) → SQLite + REST sync to Supabase
+# ─────────────────────────────────────────────────────────────────────────────
 DATABASE_URL = os.environ.get('DATABASE_URL', '')
 
 if DATABASE_URL:
     import dj_database_url
+    _supabase_db = dj_database_url.config(
+        default=DATABASE_URL,
+        conn_max_age=600,
+        conn_health_checks=True,
+    )
     DATABASES = {
-        'default': dj_database_url.config(
-            default=DATABASE_URL,
-            conn_max_age=600,
-            conn_health_checks=True,
-        )
+        'default':  _supabase_db,
+        'supabase': _supabase_db,
     }
-    SUPABASE_SYNC_ENABLED = False   # Railway IS Supabase, no REST sync needed
+    SUPABASE_SYNC_ENABLED = False
+
 else:
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
-        }
+            'NAME':   os.path.join(BASE_DIR, 'db.sqlite3'),
+        },
+        'supabase': {
+            'ENGINE':   'django.db.backends.postgresql',
+            'NAME':     'postgres',
+            'USER':     os.environ.get('SUPABASE_DB_USER',     'postgres.xezlujdnvxkorvadfdoe'),
+            'PASSWORD': os.environ.get('SUPABASE_DB_PASSWORD', 'v8]nP7`=6,N8+e+.£*'),
+            'HOST':     os.environ.get('SUPABASE_DB_HOST',     'aws-1-ap-south-1.pooler.supabase.com'),
+            'PORT':     '5432',
+        },
     }
-    SUPABASE_SYNC_ENABLED = True    # local machine → push changes to Supabase
+    SUPABASE_SYNC_ENABLED = True
 
-# ── SUPABASE REST credentials (used only in local mode) ─────────────────────
+# ── SUPABASE REST credentials (used only in local/offline mode) ───────────────
 SUPABASE_URL = os.environ.get('SUPABASE_URL', 'https://xezlujdnvxkorvadfdoe.supabase.co')
 SUPABASE_KEY = os.environ.get(
     'SUPABASE_KEY',
@@ -105,31 +117,31 @@ AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
-LOGIN_URL = 'user-login'
+LOGIN_URL          = 'user-login'
 LOGIN_REDIRECT_URL = 'dashboard'
-LOGOUT_URL = 'logout'
+LOGOUT_URL         = 'logout'
 
-# ── I18N ─────────────────────────────────────────────────────────────────────
+# ── I18N ──────────────────────────────────────────────────────────────────────
 LANGUAGE_CODE = 'en-us'
-TIME_ZONE = 'UTC'
-USE_I18N = True
-USE_TZ = True
+TIME_ZONE     = 'UTC'
+USE_I18N      = True
+USE_TZ        = True
 
 # ── STATIC / MEDIA ────────────────────────────────────────────────────────────
-STATIC_URL = 'static/'
+STATIC_URL       = 'static/'
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-MEDIA_ROOT = os.path.join(BASE_DIR, 'static/images')
-MEDIA_URL = '/images/'
+STATIC_ROOT      = os.path.join(BASE_DIR, 'staticfiles')
+MEDIA_ROOT       = os.path.join(BASE_DIR, 'static/images')
+MEDIA_URL        = '/images/'
 
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+DEFAULT_AUTO_FIELD        = 'django.db.models.BigAutoField'
 CRISPY_ALLOWED_TEMPLATE_PACKS = 'bootstrap5'
-CRISPY_TEMPLATE_PACK = 'bootstrap5'
+CRISPY_TEMPLATE_PACK      = 'bootstrap5'
 
 _csrf_origins = os.environ.get('CSRF_TRUSTED_ORIGINS', '')
-CSRF_TRUSTED_ORIGINS = [o for o in _csrf_origins.split(',') if o.strip()]
-CSRF_COOKIE_SECURE = False
-SESSION_COOKIE_SECURE = False
+CSRF_TRUSTED_ORIGINS    = [o for o in _csrf_origins.split(',') if o.strip()]
+CSRF_COOKIE_SECURE      = False
+SESSION_COOKIE_SECURE   = False
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')

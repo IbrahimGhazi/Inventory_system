@@ -1,99 +1,64 @@
 """
-worker.py – Background thread that:
-  1. Flushes PendingSync rows (failed/offline operations).
-  2. Runs a full sync once per hour to catch anything missed.
+worker.py
+─────────
+Background daemon thread that runs inside the local Django process.
+
+Every RETRY_INTERVAL seconds  → flush PendingSync queue (retry failed ops)
+Every FULL_SYNC_EVERY seconds → full push_all() to catch anything missed
+                                 (e.g. rows saved while sync was disabled)
 
 Started automatically by SyncConfig.ready() when SUPABASE_SYNC_ENABLED=True.
+Only runs on the LOCAL machine — Railway does not need this worker because
+Railway always has internet access and signals fire reliably there.
 """
 import threading
 import logging
 import time
 
-logger = logging.getLogger('sync')
+logger = logging.getLogger("sync")
 
-RETRY_INTERVAL  = 60     # seconds between pending-sync flush attempts
-FULL_SYNC_EVERY = 3600   # seconds between full syncs (1 hour)
+RETRY_INTERVAL  = 60       # seconds between pending-queue flush attempts
+FULL_SYNC_EVERY = 3_600    # seconds between full syncs (1 hour)
 
-_thread = None
-
-
-def _flush_pending():
-    """Try to process all PendingSync rows."""
-    try:
-        from sync.models import PendingSync
-        from django.apps import apps
-
-        pending = list(PendingSync.objects.order_by('created_at')[:200])
-        if not pending:
-            return
-
-        logger.info('Flushing %d pending sync(s)...', len(pending))
-        from sync.supabase_sync import get_client
-        client = get_client()
-
-        for entry in pending:
-            try:
-                if entry.operation == PendingSync.DELETE:
-                    client.table(entry.table_name).delete().eq('id', entry.record_id).execute()
-                    entry.delete()
-
-                elif entry.operation == PendingSync.UPSERT:
-                    # Re-fetch the object from local DB and re-sync it
-                    if entry.app_label and entry.model_name and entry.local_pk:
-                        model = apps.get_model(entry.app_label, entry.model_name)
-                        obj   = model.objects.filter(pk=entry.local_pk).first()
-                        if obj is None:
-                            # Object was deleted locally – remove pending upsert
-                            entry.delete()
-                            continue
-
-                        # Import the correct sync function
-                        from sync import supabase_sync as ss
-                        fn_name = f'sync_{entry.model_name.lower()}'
-                        fn = getattr(ss, fn_name, None)
-                        if fn:
-                            fn(obj)
-                        entry.delete()
-                    else:
-                        entry.delete()   # Can't retry without model info
-
-            except Exception as e:
-                entry.attempts  += 1
-                entry.last_error = str(e)[:500]
-                if entry.attempts >= 20:
-                    logger.error('Dropping %s after 20 attempts: %s', entry, e)
-                    entry.delete()
-                else:
-                    entry.save(update_fields=['attempts', 'last_error'])
-
-    except Exception as e:
-        logger.error('_flush_pending error: %s', e)
+_thread: threading.Thread | None = None
 
 
-def _worker_loop():
-    last_full_sync = 0
+def _worker_loop() -> None:
+    last_full_sync = 0.0
 
     while True:
         try:
-            _flush_pending()
+            # 1. Flush any queued failures
+            from .engine import flush_pending
+            flush_pending()
 
+            # 2. Periodic full sync (catches anything signals missed)
             now = time.time()
             if now - last_full_sync >= FULL_SYNC_EVERY:
-                from sync.supabase_sync import sync_all_data
-                sync_all_data()
+                from .engine import push_all
+                push_all(wipe_first=False)   # upsert-only; safe to run anytime
                 last_full_sync = time.time()
 
-        except Exception as e:
-            logger.error('Worker loop error: %s', e)
+        except Exception as exc:
+            logger.error("Sync worker loop error: %s", exc)
 
         time.sleep(RETRY_INTERVAL)
 
 
-def start():get_client()
-    """Spawn the background worker daemon thread (called once at startup)."""
+def start() -> None:
+    """Spawn the background worker daemon (called once at app startup)."""
     global _thread
     if _thread is not None and _thread.is_alive():
         return
-    _thread = threading.Thread(target=_worker_loop, name='supabase-sync-worker', daemon=True)
+    _thread = threading.Thread(
+        target=_worker_loop,
+        name="supabase-sync-worker",
+        daemon=True,          # dies automatically when the main process exits
+    )
     _thread.start()
-    logger.info('Supabase sync worker started.')
+    logger.info("Supabase sync worker started (retry every %ds, full sync every %ds).",
+                RETRY_INTERVAL, FULL_SYNC_EVERY)
+
+
+def is_running() -> bool:
+    return _thread is not None and _thread.is_alive()
